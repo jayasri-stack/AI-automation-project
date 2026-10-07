@@ -1,0 +1,175 @@
+"""End-to-end story video workflow with durable asynchronous Veo jobs."""
+
+from __future__ import annotations
+
+import logging
+import os
+from pathlib import Path
+from typing import Any
+
+from story_video_automation.azure_speech import synthesize_narration
+from story_video_automation.config import get_settings
+from story_video_automation.media import render_video
+from story_video_automation.options import Options
+from story_video_automation.state import (
+    create_workflow_job,
+    get_story,
+    pending_video_jobs,
+    save_research,
+    save_story,
+    set_job_title,
+    set_preview_path,
+    set_upload_settings,
+    transition,
+    update_scene,
+)
+from story_video_automation.story_generation import generate_story
+from story_video_automation.telegram_bot import send_approval_notification
+from story_video_automation.video_generation import poll_scene, submit_scene
+from story_video_automation.youtube_research import search_videos
+
+logger = logging.getLogger(__name__)
+
+
+def start_workflow(
+    topic: str,
+    language: str,
+    references: list[dict[str, Any]] | None = None,
+    upload_privacy: str | None = None,
+    made_for_kids: bool | None = None,
+) -> int:
+    """Create a job from selected research and submit one Veo operation per scene."""
+    topic = topic.strip()
+    if not topic:
+        raise ValueError("Enter a story topic or research query")
+    sources = references if references is not None else search_videos(topic, language)
+    if not sources:
+        raise RuntimeError("No YouTube references were selected or returned")
+
+    job_id = create_workflow_job(topic[:100], language, topic)
+    try:
+        privacy = upload_privacy or Options.from_env().upload_privacy
+        audience_setting = (
+            Options.from_env().made_for_kids if made_for_kids is None else made_for_kids
+        )
+        set_upload_settings(job_id, privacy, audience_setting)
+        transition(job_id, "researching", "Collecting current YouTube search metadata")
+        save_research(job_id, sources)
+        transition(job_id, "writing", "Generating an original story and scene prompts")
+        story = generate_story(topic, language)
+        set_job_title(job_id, story["title"])
+        save_story(job_id, story["synopsis"], story["script"], language, story["scenes"])
+
+        transition(job_id, "generating_video", "Submitting asynchronous scene generation jobs")
+        root = get_settings().output_dir / f"job_{job_id}" / "scenes"
+        for scene_number, scene in enumerate(story["scenes"], start=1):
+            prompt = (
+                f"Original cinematic short-film scene. {scene['visual_prompt']} "
+                "Consistent characters and art direction. No captions, logos, or watermarks."
+            )
+            operation_name = submit_scene(prompt)
+            update_scene(
+                job_id,
+                scene_number,
+                operation_name=operation_name,
+                operation_state="submitted",
+                video_path=str(root / f"scene_{scene_number:02}.mp4"),
+            )
+    except Exception as exc:
+        _fail_if_active(job_id, exc)
+        raise
+    return job_id
+
+
+def process_pending() -> dict[str, int]:
+    """Poll saved Veo operations once, then narrate/edit completed jobs."""
+    from story_video_automation.state import delete_expired_youtube_data, initialize
+
+    initialize()
+    deleted = delete_expired_youtube_data(Options.from_env().api_data_retention_days)
+    counts = {"pending": 0, "completed": 0, "failed": 0, "expired_records_deleted": deleted}
+    for job in pending_video_jobs():
+        job_id = int(job["id"])
+        story = get_story(job_id)
+        if story is None:
+            _fail_if_active(job_id, RuntimeError("Story record is missing"))
+            counts["failed"] += 1
+            continue
+        try:
+            still_pending = False
+            any_failed = False
+            for scene in story["scenes"]:
+                if scene["operation_state"] == "done":
+                    continue
+                if not scene.get("operation_name"):
+                    raise RuntimeError(f"Scene {scene['scene_number']} has no saved Veo operation")
+                result = poll_scene(
+                    scene["operation_name"],
+                    Path(scene["video_path"] or "generated/missing.mp4"),
+                )
+                if result["state"] == "pending":
+                    still_pending = True
+                elif result["state"] == "failed":
+                    update_scene(job_id, scene["scene_number"], operation_state="failed")
+                    raise RuntimeError(
+                        f"Scene {scene['scene_number']} video generation failed: {result['error']}"
+                    )
+                else:
+                    update_scene(
+                        job_id,
+                        scene["scene_number"],
+                        operation_state="done",
+                        video_path=result["path"],
+                    )
+            if still_pending:
+                counts["pending"] += 1
+                continue
+
+            transition(job_id, "narrating", "All scene videos completed")
+            narrated_scenes: list[dict[str, Any]] = []
+            for scene in story["scenes"]:
+                audio_path = Path(scene["video_path"]).with_suffix(".wav")
+                synthesize_narration(
+                    scene["narration"],
+                    audio_path,
+                    language=story["language"],
+                )
+                update_scene(job_id, scene["scene_number"], audio_path=str(audio_path))
+                narrated_scenes.append({**scene, "audio_path": str(audio_path)})
+
+            transition(job_id, "editing", "Narration generated; assembling scene clips and subtitles")
+            settings = get_settings()
+            output_dir = settings.output_dir / f"job_{job_id}"
+            preview = output_dir / "preview.mp4"
+            rendered_scenes = [
+                {**scene, "video_path": scene["video_path"], "audio_path": scene["audio_path"]}
+                for scene in narrated_scenes
+            ]
+            music_setting = os.getenv("BACKGROUND_MUSIC", "").strip()
+            music_path = Path(music_setting) if music_setting else None
+            if music_path and not music_path.is_file():
+                raise FileNotFoundError(f"BACKGROUND_MUSIC file not found: {music_path}")
+            render_video(rendered_scenes, output_dir, preview, background_music=music_path)
+            set_preview_path(job_id, str(preview.resolve()))
+            transition(job_id, "awaiting_approval", "Preview is ready for human review")
+            counts["completed"] += 1
+            try:
+                send_approval_notification(job_id)
+            except Exception:
+                logger.exception("Could not send Telegram approval notification for job %s", job_id)
+        except Exception as exc:
+            _fail_if_active(job_id, exc)
+            counts["failed"] += 1
+            logger.exception("Workflow processing failed for job %s", job_id)
+    return counts
+
+
+def _fail_if_active(job_id: int, error: Exception) -> None:
+    from story_video_automation.db import list_jobs
+
+    job = next((item for item in list_jobs() if item["id"] == job_id), None)
+    if job and job["status"] not in {"failed", "rejected", "uploaded"}:
+        try:
+            transition(job_id, "failed", f"{type(error).__name__}: {error}"[:2000])
+        except ValueError:
+            logger.exception("Could not mark job %s failed", job_id)

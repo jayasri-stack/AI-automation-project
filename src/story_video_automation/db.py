@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from story_video_automation.config import get_settings
 
@@ -40,14 +41,19 @@ CREATE INDEX IF NOT EXISTS idx_approval_events_job
 """
 
 
-def connect(database_path: Path | str | None = None) -> sqlite3.Connection:
-    """Open a SQLite connection with foreign-key checks enabled."""
+@contextmanager
+def connect(database_path: Path | str | None = None) -> Iterator[sqlite3.Connection]:
+    """Open a short-lived SQLite connection with foreign-key checks enabled."""
     path = Path(database_path) if database_path is not None else get_settings().database_path
     path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(path)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
-    return connection
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
 
 
 def initialize_database(database_path: Path | str | None = None) -> None:
@@ -62,12 +68,15 @@ def create_job(
     database_path: Path | str | None = None,
 ) -> int:
     """Create a queued story/video job and return its ID."""
+    title = title.strip()
+    if not title:
+        raise ValueError("title must not be empty")
     if language not in {"te", "en"}:
         raise ValueError("language must be 'te' (Telugu) or 'en' (English)")
     with connect(database_path) as connection:
         cursor = connection.execute(
             "INSERT INTO jobs (title, language, status) VALUES (?, ?, 'queued')",
-            (title.strip(), language),
+            (title, language),
         )
         return int(cursor.lastrowid)
 
@@ -137,7 +146,7 @@ def mark_uploaded(
         cursor = connection.execute(
             """UPDATE jobs
                SET status = 'uploaded', youtube_video_id = ?, updated_at = CURRENT_TIMESTAMP
-               WHERE id = ? AND status = 'approved' AND preview_path IS NOT NULL""",
+               WHERE id = ? AND status = 'uploading' AND preview_path IS NOT NULL""",
             (youtube_video_id, job_id),
         )
         if cursor.rowcount != 1:

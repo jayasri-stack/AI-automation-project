@@ -1,6 +1,8 @@
 # AI Automation Project
 
-A Python workflow for researching story ideas, generating original Telugu or English scripts and scene descriptions, producing video and narration, assembling reviewable previews, and publishing only after explicit approval.
+See [docs/SETUP.md](docs/SETUP.md) for provider credentials, Telegram chat setup, approval behavior, data retention, and Task Scheduler details.
+
+A local Python workflow that researches YouTube topics, creates original Telugu or English stories, generates scene clips, narrates and edits them, and waits for your approval before uploading.
 
 ## Workflow
 
@@ -21,9 +23,9 @@ A Python workflow for researching story ideas, generating original Telugu or Eng
 - Uploading must be gated by a persisted approval decision. Rejection must prevent upload.
 - Video-generation providers may complete asynchronously; job state must persist between runs.
 
-## First milestone
+## Project modules
 
-The initial foundation provides environment-based configuration, a SQLite job and approval store, a Streamlit review screen, and an approval check for upload workflows. Provider integrations and scheduling will be added in later milestones.
+The package includes YouTube research, Gemini story and asynchronous Veo generation, Azure Speech narration, FFmpeg editing, SQLite persistence, Streamlit review, Telegram approvals, and YouTube upload guarded by a persisted approval decision.
 
 ## Setup
 
@@ -51,4 +53,22 @@ Run the dashboard:
 streamlit run src/story_video_automation/dashboard.py
 ```
 
-The dashboard starts empty until workflow jobs are created. No provider calls or video uploads are enabled by this foundation milestone.
+The dashboard starts empty until you search and create a job. Configure only the API credentials you need in `.env`. Generated media and databases are ignored by Git.
+
+## Provider setup
+
+Add a YouTube Data API key, Gemini API key, Azure Speech resource key and region, and Telegram bot token/chat ID to `.env`. For uploads, download an OAuth **Desktop app** client JSON and put it at `YOUTUBE_OAUTH_CLIENT_SECRETS` (default `secrets/youtube-client-secret.json`). The first approved upload opens Google's local OAuth consent flow; its token is stored under the Git-ignored `secrets/` directory. Start a chat with your Telegram bot before configuring the numeric `TELEGRAM_CHAT_ID`.
+
+Upload visibility is selected for each job in the dashboard and shown in its Telegram message; it defaults to `private` and can be changed with `YOUTUBE_UPLOAD_PRIVACY`. An approved item triggers upload. If OAuth is not ready, approval stays saved and you can retry from the dashboard or with `story-video upload-approved JOB_ID`. A job left in `uploading` has an uncertain remote outcome; check YouTube Studio before retrying to avoid duplicates.
+
+## Asynchronous jobs and scheduling
+
+The Streamlit dashboard lets you search YouTube, select inspiration videos, generate a story, and review the finished preview. Veo jobs are asynchronous; run `story-video process-pending` to poll them. Install current-user Windows Task Scheduler tasks with:
+
+```powershell
+.\scripts\install-scheduled-tasks.ps1
+```
+
+The processor runs every 10 minutes by default; pass `-IntervalMinutes 5` to change it. Set `SCHEDULED_TOPIC` in `.env` to create a new job daily; set `SCHEDULED_LANGUAGE=te` or `en`. The daily generation task defaults to 09:00 local time; pass `-DailyAt "18:30"` to change it. The Telegram approval bot starts at sign-in. Every generated job still waits for a human decision. Remove the tasks with `Unregister-ScheduledTask` for `AI Automation Process Pending Jobs`, `AI Automation Create Scheduled Video`, and `AI Automation Telegram Approval Bot`.
+
+The workflow uses YouTube results as topic research only and does not download or reuse source videos. Cached YouTube metadata and statistics are deleted within 30 days. Upload metadata marks generated video as synthetic media.
