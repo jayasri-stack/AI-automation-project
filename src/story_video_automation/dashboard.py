@@ -114,12 +114,16 @@ def main() -> None:
                     )
                     st.session_state.pop("research_results", None)
                     mode = Options.from_env().video_provider
-                    message = (
-                        "local scene cards are ready to process"
-                        if mode == "local"
-                        else "Veo scene generation is running asynchronously"
-                    )
-                    st.success(f"Job #{job_id} created; {message}.")
+                    if mode == "local":
+                        from story_video_automation.pipeline import process_pending
+
+                        result = process_pending(job_ids={job_id})
+                        if result["completed"]:
+                            st.success(f"Job #{job_id} is ready. Its preview is now in Video jobs, and Telegram was notified.")
+                        else:
+                            st.info(f"Job #{job_id} was created; check its status and error details in Video jobs.")
+                    else:
+                        st.success(f"Job #{job_id} created; Veo scene generation is running asynchronously.")
                 except Exception as exc:
                     st.error(f"Could not start the workflow: {exc}")
 

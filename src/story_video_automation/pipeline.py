@@ -95,14 +95,17 @@ def start_workflow(
     return job_id
 
 
-def process_pending() -> dict[str, int]:
+def process_pending(job_ids: set[int] | None = None) -> dict[str, int]:
     """Poll saved Veo operations once, then narrate/edit completed jobs."""
     from story_video_automation.state import delete_expired_youtube_data, initialize
 
     initialize()
     deleted = delete_expired_youtube_data(Options.from_env().api_data_retention_days)
     counts = {"pending": 0, "completed": 0, "failed": 0, "expired_records_deleted": deleted}
-    for job in pending_video_jobs():
+    pending = pending_video_jobs()
+    if job_ids is not None:
+        pending = [job for job in pending if int(job["id"]) in job_ids]
+    for job in pending:
         job_id = int(job["id"])
         story = get_story(job_id)
         if story is None:
