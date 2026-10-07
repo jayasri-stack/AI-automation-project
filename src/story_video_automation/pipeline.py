@@ -10,6 +10,7 @@ from typing import Any
 
 from story_video_automation.azure_speech import synthesize_narration
 from story_video_automation.config import get_settings
+from story_video_automation.channel_profile import CHANNEL_NICHE, CHANNEL_SEARCH_QUERY
 from story_video_automation.media import render_video
 from story_video_automation.options import Options
 from story_video_automation.state import (
@@ -22,7 +23,6 @@ from story_video_automation.state import (
     set_job_title,
     set_preview_path,
     set_upload_settings,
-    get_channel_niche,
     list_research,
     transition,
     update_scene,
@@ -31,6 +31,7 @@ from story_video_automation.story_generation import generate_story
 from story_video_automation.telegram_bot import send_approval_notification
 from story_video_automation.video_generation import poll_scene, submit_local_scene, submit_scene
 from story_video_automation.youtube_research import search_videos
+from story_video_automation.db import list_jobs
 
 logger = logging.getLogger(__name__)
 
@@ -41,15 +42,18 @@ def start_workflow(
     references: list[dict[str, Any]] | None = None,
     upload_privacy: str | None = None,
     made_for_kids: bool | None = None,
-    channel_niche: str | None = None,
 ) -> int:
     """Create a job from selected research using local scenes by default."""
     topic = topic.strip()
     if not topic:
         raise ValueError("Enter a story topic or research query")
-    sources = references if references is not None else search_videos(topic, language)
+    sources = (
+        references if references is not None
+        else search_videos(f"{CHANNEL_SEARCH_QUERY} {topic}", language)
+    )
     if not sources:
         raise RuntimeError("No YouTube references were selected or returned")
+    _ensure_previous_episode_reviewed()
 
     job_id = create_workflow_job(topic[:100], language, topic)
     try:
@@ -61,12 +65,16 @@ def start_workflow(
         transition(job_id, "researching", "Collecting current YouTube search metadata")
         save_research(job_id, sources)
         transition(job_id, "writing", "Generating an original story and scene prompts")
-        niche = (channel_niche or get_channel_niche()).strip()
+        episode_number, previous_episode = _previous_serial_context()
         story = generate_story(
-            topic, language, channel_niche=niche, trend_references=sources,
+            topic, language, trend_references=sources,
+            episode_number=episode_number, previous_episode=previous_episode,
         )
-        set_job_title(job_id, story["title"])
-        save_story(job_id, story["synopsis"], story["script"], language, story["scenes"], niche)
+        set_job_title(job_id, f"Episode {episode_number}: {story['title']}")
+        save_story(
+            job_id, story["synopsis"], story["script"], language, story["scenes"],
+            CHANNEL_NICHE, episode_number,
+        )
 
         video_provider = Options.from_env().video_provider
         detail = (
@@ -205,8 +213,10 @@ def revise_preview(job_id: int, instructions: str) -> str:
 
     revised = generate_story(
         job["title"], current["language"], revision_prompt=instructions,
-        previous_story=current, channel_niche=current.get("channel_niche") or get_channel_niche(),
+        previous_story=current,
         trend_references=list_research(job_id),
+        episode_number=int(current.get("episode_number", 1)),
+        previous_episode=_previous_serial_context(exclude_job_id=job_id)[1],
     )
     from story_video_automation.local_media import render_local_scene_card
 
@@ -233,7 +243,7 @@ def revise_preview(job_id: int, instructions: str) -> str:
     # Persist the new story only after all media renders successfully; approval remains pending.
     save_story(
         job_id, revised["synopsis"], revised["script"], current["language"],
-        revised["scenes"], current.get("channel_niche") or get_channel_niche(),
+        revised["scenes"], CHANNEL_NICHE, int(current.get("episode_number", 1)),
     )
     for number, scene in enumerate(rendered, 1):
         update_scene(job_id, number, operation_name="local:completed", operation_state="done",
@@ -246,6 +256,39 @@ def revise_preview(job_id: int, instructions: str) -> str:
     except Exception:
         logger.exception("Could not send revised Telegram approval notification for job %s", job_id)
     return str(preview.resolve())
+
+
+def _previous_serial_context(
+    exclude_job_id: int | None = None,
+) -> tuple[int, dict[str, Any] | None]:
+    """Return the next episode number and latest approved/current story in this serial."""
+    eligible = {"approved", "uploading", "uploaded"}
+    episodes: list[tuple[int, dict[str, Any]]] = []
+    for job in list_jobs():
+        if int(job["id"]) == exclude_job_id or job["status"] not in eligible:
+            continue
+        story = get_story(int(job["id"]))
+        if not story or story.get("channel_niche") != CHANNEL_NICHE:
+            continue
+        number = int(story.get("episode_number", 1))
+        episodes.append((number, {**story, "title": job["title"]}))
+    if not episodes:
+        return 1, None
+    number, previous = max(episodes, key=lambda item: item[0])
+    return number + 1, previous
+
+
+def _ensure_previous_episode_reviewed() -> None:
+    """Require a decision before creating the next installment in the serial."""
+    for job in list_jobs():
+        if job["status"] != "awaiting_approval":
+            continue
+        story = get_story(int(job["id"]))
+        if story and story.get("channel_niche") == CHANNEL_NICHE:
+            raise ValueError(
+                f"Episode {story.get('episode_number', 1)} is still awaiting review. "
+                "Approve or reject it before creating the next episode."
+            )
 
 
 def _fail_if_active(job_id: int, error: Exception) -> None:
