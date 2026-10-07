@@ -2,11 +2,13 @@
 
 ## Provider credentials
 
-Copy `.env.example` to `.env` and set only the credentials for services you use.
+Copy `.env.example` to `.env`. The defaults use local scene cards and local speech; no Veo or
+Azure request is made unless you explicitly change the provider settings.
 
 - **YouTube research:** Create a Google Cloud project, enable YouTube Data API v3, and set its API key as `YOUTUBE_API_KEY`.
-- **Gemini stories and Veo clips:** Create a Gemini API key and set `GEMINI_API_KEY`. Veo access and billing must be enabled for the selected account/project. `GEMINI_VIDEO_MODEL` and `GEMINI_TEXT_MODEL` can be changed without code edits.
-- **Azure narration:** Set the Speech resource key and region. Telugu uses `te-IN-ShrutiNeural` by default; set `AZURE_TELUGU_VOICE` to `te-IN-MohanNeural` if you prefer the male voice. English defaults to `en-US-AriaNeural`.
+- **Gemini stories:** Create a Gemini API key and leave the project on a free-tier model/project; do not link billing if you need to avoid charges. Free-tier limits apply and can change. Gemini free-tier requests may be used to improve Google's products.
+- **Veo clips (optional, paid):** Only set `VIDEO_PROVIDER=veo` if you decide to use paid Veo. Its API has no free tier; review pricing before enabling it.
+- **Narration:** The default local speech mode uses a voice installed in Windows. If no Telugu voice is installed, add a Telugu voice through Windows language/speech settings before processing Telugu jobs. Optional Azure Speech mode uses `SPEECH_PROVIDER=azure` and requires a Speech key and region; only use it after confirming the resource is on the F0 free tier.
 - **Telegram approvals:** Create a bot with BotFather. Set `TELEGRAM_BOT_TOKEN`, send `/start` to the bot, and run `story-video telegram-chat-id`. Copy the printed numeric ID to `TELEGRAM_CHAT_ID`. The bot ignores approval actions from every other chat.
 - **YouTube upload:** Create an OAuth client of type **Desktop app** and set its JSON path as `YOUTUBE_OAUTH_CLIENT_SECRETS`. The first approved upload opens an OAuth consent window requesting only the YouTube upload scope. The refresh token is stored at `secrets/youtube-token.json`; never commit it.
 
@@ -14,9 +16,9 @@ FFmpeg and FFprobe must be installed separately. The FFmpeg build needs H.264 (`
 
 ## Workflow and approvals
 
-In Streamlit, enter a topic, search YouTube, select the references to keep with the job, choose Telugu or English, and choose the upload visibility. Search-result titles and statistics are shown as YouTube data and are not sent to Gemini. Gemini creates an original story from the topic you entered.
+In Streamlit, enter a topic, search YouTube, select the references to keep with the job, choose Telugu or English, and choose the upload visibility. YouTube Data API has a default daily quota; API quota is not a cash balance. Search-result titles and statistics are shown as YouTube data and are not sent to Gemini. Gemini creates an original story from the topic you entered.
 
-Veo returns long-running operation names. Those names and scene states are stored in SQLite so `story-video process-pending` can poll again after a restart. Once all clips are ready, the worker creates per-scene narration, mixes scene audio with narration, adds optional background music, burns subtitles into the preview, then sends approval buttons.
+In free-first local mode, FFmpeg creates stylized scene cards without a video-generation API. If you opt into Veo, its long-running operation names are stored in SQLite so `story-video process-pending` can poll after a restart. Once scenes are ready, the worker creates per-scene narration, mixes scene audio with narration, adds optional background music, burns subtitles into the preview, then sends approval buttons.
 
 Approval in Streamlit or Telegram writes a durable decision before upload begins. A rejection cannot be uploaded. The selected visibility is shown in Streamlit and Telegram; uploads default to private. A job left in `uploading` has an uncertain remote outcome after a network failure. Check YouTube Studio before any retry; the workflow deliberately avoids automatic duplicate uploads. If no video exists, confirm that in the dashboard before resetting the job to approved.
 
@@ -29,7 +31,7 @@ For daily automatic job creation, set `SCHEDULED_TOPIC` and `SCHEDULED_LANGUAGE`
 - A Telegram bot process at user sign-in.
 
 Every scheduled job still waits for approval. The desktop session must be running for the Telegram bot and local OAuth consent flow.
-Each scheduled generation uses YouTube and Gemini/Veo API quota and may incur provider charges. Leave `SCHEDULED_TOPIC` empty and do not install the scheduled creator if you only want jobs started manually in Streamlit.
+Each scheduled generation uses YouTube and Gemini API quota. Local scene cards incur no provider charge. Veo or Azure may incur charges if explicitly enabled. Leave `SCHEDULED_TOPIC` empty and do not install the scheduled creator if you only want jobs started manually in Streamlit.
 
 ## Local data and security
 

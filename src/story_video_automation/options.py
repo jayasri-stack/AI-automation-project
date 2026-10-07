@@ -18,6 +18,8 @@ class Options:
     youtube_result_limit: int = 8
     text_model: str = "gemini-2.5-flash"
     video_model: str = "veo-3.1-generate-preview"
+    video_provider: str = "local"
+    speech_provider: str = "local"
     video_aspect_ratio: str = "9:16"
     scene_count: int = 5
     telugu_voice: str = "te-IN-ShrutiNeural"
@@ -48,11 +50,19 @@ class Options:
             made_for_kids = None
         else:
             raise ValueError("YOUTUBE_MADE_FOR_KIDS must be true, false, or empty")
+        video_provider = os.getenv("VIDEO_PROVIDER", "local").lower()
+        if video_provider not in {"local", "veo"}:
+            raise ValueError("VIDEO_PROVIDER must be local or veo")
+        speech_provider = os.getenv("SPEECH_PROVIDER", "local").lower()
+        if speech_provider not in {"local", "azure"}:
+            raise ValueError("SPEECH_PROVIDER must be local or azure")
         return cls(
             youtube_region=os.getenv("YOUTUBE_REGION", "IN").upper(),
             youtube_result_limit=_int("YOUTUBE_RESULT_LIMIT", 8, 1, 50),
             text_model=os.getenv("GEMINI_TEXT_MODEL", "gemini-2.5-flash"),
             video_model=os.getenv("GEMINI_VIDEO_MODEL", "veo-3.1-generate-preview"),
+            video_provider=video_provider,
+            speech_provider=speech_provider,
             video_aspect_ratio=ratio,
             scene_count=_int("STORY_SCENE_COUNT", 5, 2, 12),
             telugu_voice=os.getenv("AZURE_TELUGU_VOICE", "te-IN-ShrutiNeural"),

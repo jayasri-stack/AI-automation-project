@@ -8,8 +8,8 @@ A local Python workflow that researches YouTube topics, creates original Telugu 
 
 1. Research relevant YouTube videos with YouTube Data API v3 and retain available view statistics.
 2. Generate original plots, scripts, and scene descriptions with Gemini.
-3. Submit and track asynchronous scene-video generation jobs.
-4. Generate Telugu narration with Azure Speech.
+3. Render local scene cards by default; optionally submit and track paid asynchronous Veo jobs.
+4. Generate narration locally by default; Azure Speech is optional.
 5. Join clips, mix narration, and add subtitles with FFmpeg.
 6. Track jobs and approval decisions in SQLite.
 7. Review previews in the Streamlit dashboard and receive Telegram approval notifications.
@@ -23,9 +23,17 @@ A local Python workflow that researches YouTube topics, creates original Telugu 
 - Uploading must be gated by a persisted approval decision. Rejection must prevent upload.
 - Video-generation providers may complete asynchronously; job state must persist between runs.
 
+## Free-first defaults
+
+The default `VIDEO_PROVIDER=local` renders simple scene cards with FFmpeg instead of calling the
+paid Veo API. `SPEECH_PROVIDER=local` uses an installed Windows speech voice and does not call
+Azure. Gemini Flash and YouTube Data API use their free quotas when no paid billing project is
+linked. Veo and Azure are optional provider choices; check their current quotas/prices before
+enabling them. Local scene cards are not AI-generated motion footage.
+
 ## Project modules
 
-The package includes YouTube research, Gemini story and asynchronous Veo generation, Azure Speech narration, FFmpeg editing, SQLite persistence, Streamlit review, Telegram approvals, and YouTube upload guarded by a persisted approval decision.
+The package includes YouTube research, Gemini story writing, local scene-card rendering, optional asynchronous Veo generation, local or optional Azure narration, FFmpeg editing, SQLite persistence, Streamlit review, Telegram approvals, and YouTube upload guarded by a persisted approval decision.
 
 ## Setup
 

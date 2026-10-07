@@ -25,7 +25,7 @@ from story_video_automation.state import (
 )
 from story_video_automation.story_generation import generate_story
 from story_video_automation.telegram_bot import send_approval_notification
-from story_video_automation.video_generation import poll_scene, submit_scene
+from story_video_automation.video_generation import poll_scene, submit_local_scene, submit_scene
 from story_video_automation.youtube_research import search_videos
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ def start_workflow(
     upload_privacy: str | None = None,
     made_for_kids: bool | None = None,
 ) -> int:
-    """Create a job from selected research and submit one Veo operation per scene."""
+    """Create a job from selected research using local scenes by default."""
     topic = topic.strip()
     if not topic:
         raise ValueError("Enter a story topic or research query")
@@ -60,20 +60,32 @@ def start_workflow(
         set_job_title(job_id, story["title"])
         save_story(job_id, story["synopsis"], story["script"], language, story["scenes"])
 
-        transition(job_id, "generating_video", "Submitting asynchronous scene generation jobs")
+        video_provider = Options.from_env().video_provider
+        detail = (
+            "Rendering free local scene cards"
+            if video_provider == "local"
+            else "Submitting asynchronous Veo scene generation jobs (paid provider)"
+        )
+        transition(job_id, "generating_video", detail)
         root = get_settings().output_dir / f"job_{job_id}" / "scenes"
         for scene_number, scene in enumerate(story["scenes"], start=1):
             prompt = (
                 f"Original cinematic short-film scene. {scene['visual_prompt']} "
                 "Consistent characters and art direction. No captions, logos, or watermarks."
             )
-            operation_name = submit_scene(prompt)
+            destination = root / f"scene_{scene_number:02}.mp4"
+            if video_provider == "local":
+                operation_name = submit_local_scene(prompt, destination)
+                operation_state = "done"
+            else:
+                operation_name = submit_scene(prompt)
+                operation_state = "submitted"
             update_scene(
                 job_id,
                 scene_number,
                 operation_name=operation_name,
-                operation_state="submitted",
-                video_path=str(root / f"scene_{scene_number:02}.mp4"),
+                operation_state=operation_state,
+                video_path=str(destination),
             )
     except Exception as exc:
         _fail_if_active(job_id, exc)

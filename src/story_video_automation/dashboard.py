@@ -29,6 +29,14 @@ def main() -> None:
     st.set_page_config(page_title="AI Automation Project", layout="wide")
     st.title("AI Story Video Studio")
     st.caption("Research a topic, select references, generate a story, then review before upload.")
+    options = Options.from_env()
+    if options.video_provider == "local" and options.speech_provider == "local":
+        st.info(
+            "No-cost mode is active: scene cards render on your PC and narration uses an installed "
+            "Windows voice. Gemini Flash stays on its free tier unless you link billing."
+        )
+    elif options.video_provider == "veo":
+        st.warning("Veo video generation is a paid service. Each generated second may incur a charge.")
     st.markdown(
         "Uses the YouTube Data API. [Google Privacy Policy](https://policies.google.com/privacy) · "
         "[Local data and privacy notice](https://github.com/jayasri-stack/AI-automation-project/blob/main/docs/PRIVACY.md)"
@@ -101,7 +109,13 @@ def main() -> None:
                                        False if audience_choice == "no" else None),
                     )
                     st.session_state.pop("research_results", None)
-                    st.success(f"Job #{job_id} created. Scene generation is running asynchronously.")
+                    mode = Options.from_env().video_provider
+                    message = (
+                        "local scene cards are ready to process"
+                        if mode == "local"
+                        else "Veo scene generation is running asynchronously"
+                    )
+                    st.success(f"Job #{job_id} created; {message}.")
                 except Exception as exc:
                     st.error(f"Could not start the workflow: {exc}")
 

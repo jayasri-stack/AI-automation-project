@@ -11,6 +11,8 @@ requires-python = ">=3.11"
 dependencies = [
   "python-dotenv>=1.0,<2.0",
   "streamlit>=1.40,<2.0",
+  "pillow>=10,<13",
+  "pyttsx3>=2.90,<3.0",
 ]
 
 [project.optional-dependencies]

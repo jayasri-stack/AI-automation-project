@@ -21,8 +21,10 @@ def _client() -> Any:
 
 
 def submit_scene(prompt: str) -> str:
-    """Submit one long-running scene operation and return its durable operation name."""
+    """Submit one paid Veo operation; local mode uses submit_local_scene instead."""
     options = Options.from_env()
+    if options.video_provider == "local":
+        raise ValueError("Local video mode needs a destination path; call submit_local_scene instead")
     from google.genai import types
 
     operation = _client().models.generate_videos(
@@ -34,6 +36,14 @@ def submit_scene(prompt: str) -> str:
     if not name:
         raise RuntimeError("Gemini video generation returned no operation name")
     return str(name)
+
+
+def submit_local_scene(prompt: str, destination: Path) -> str:
+    """Render an offline scene card and return a completed local-operation marker."""
+    from story_video_automation.local_media import render_local_scene_card
+
+    render_local_scene_card(prompt, destination)
+    return "local:completed"
 
 
 def poll_scene(operation_name: str, destination: Path) -> dict[str, Any]:
