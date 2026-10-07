@@ -1,0 +1,16 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.db
+.streamlit/secrets.toml
+data/
+generated/
+outputs/
+logs/
+dist/
+build/
+*.egg-info/
+!.env.example
