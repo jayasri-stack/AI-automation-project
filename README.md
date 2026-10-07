@@ -8,7 +8,7 @@ A local Python workflow that researches YouTube topics, creates original Telugu 
 
 1. Find recent high-velocity videos in a niche with YouTube Data API v3 and retain available view statistics.
 2. Generate original plots, scripts, and scene descriptions with Gemini.
-3. Render local scene cards by default; optionally submit and track paid asynchronous Veo jobs.
+3. Render locally animated illustrated village scenes by default; optionally submit and track paid asynchronous Veo jobs.
 4. Generate narration locally by default; Azure Speech is optional.
 5. Join clips, mix narration, and add subtitles with FFmpeg.
 6. Track jobs and approval decisions in SQLite.
@@ -25,15 +25,15 @@ A local Python workflow that researches YouTube topics, creates original Telugu 
 
 ## Free-first defaults
 
-The default `VIDEO_PROVIDER=local` renders simple scene cards with FFmpeg instead of calling the
+The default `VIDEO_PROVIDER=local` renders simple 2D animated village illustrations with FFmpeg instead of calling the
 paid Veo API. `SPEECH_PROVIDER=local` uses an installed Windows speech voice and does not call
 Azure. Gemini Flash and YouTube Data API use their free quotas when no paid billing project is
 linked. Veo and Azure are optional provider choices; check their current quotas/prices before
-enabling them. Local scene cards are not AI-generated motion footage.
+enabling them. Local animation is drawn by code and is not AI-generated cinematic footage.
 
 ## Project modules
 
-The package includes YouTube research, Gemini story writing, local scene-card rendering, optional asynchronous Veo generation, local or optional Azure narration, FFmpeg editing, SQLite persistence, Streamlit review, Telegram approvals, and YouTube upload guarded by a persisted approval decision.
+The package includes YouTube research, Gemini story writing, local animated village scenes, optional asynchronous Veo generation, local or optional Azure narration, FFmpeg editing, SQLite persistence, Streamlit review, Telegram approvals, and YouTube upload guarded by a persisted approval decision.
 
 ## Setup
 
@@ -71,7 +71,7 @@ Upload visibility is selected for each job in the dashboard and shown in its Tel
 
 ## Asynchronous jobs and scheduling
 
-The channel identity is fixed in code: peaceful Telugu village stories set in the 1980s, with traditional vintage life, calm narration, moral values, and recurring characters in a connected serial. The dashboard has no niche selector; it automatically searches YouTube for the fixed niche, with an optional episode idea to narrow the search. Results from the last 30 days are ranked by estimated views per day, a trend signal rather than an official YouTube trending feed. The top three results are automatically sent to Gemini as trend references to write a new original story; source footage is not downloaded or reused. Each new episode continues the latest approved story and ends with a hook. A pending episode must be approved or rejected before the next episode can be created. You can revise an awaiting-approval draft with a prompt and review the preview. Prompt revisions regenerate the free local scene cards; this does not create AI-generated motion footage. Veo jobs are asynchronous; run `story-video process-pending` to poll them. Install current-user Windows Task Scheduler tasks with:
+The channel identity is fixed in code: peaceful Telugu village stories set in the 1980s, with traditional vintage life, calm narration, moral values, and recurring characters in a connected serial. The dashboard has no niche selector; it automatically searches YouTube for the fixed niche, with an optional episode idea to narrow the search. Results from the last 30 days are ranked by estimated views per day, a trend signal rather than an official YouTube trending feed. The top three results are automatically sent to Gemini as trend references to write a new original story; source footage is not downloaded or reused. Each new episode continues the latest approved story and ends with a hook. A pending episode must be approved or rejected before the next episode can be created. You can revise an awaiting-approval draft with a prompt and review the preview. Prompt revisions regenerate the free local 2D animated village scenes. This is procedural illustration, not AI-generated cinematic footage. Veo jobs are asynchronous; run `story-video process-pending` to poll them. Install current-user Windows Task Scheduler tasks with:
 
 ```powershell
 .\scripts\install-scheduled-tasks.ps1

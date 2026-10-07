@@ -33,7 +33,7 @@ def main() -> None:
     options = Options.from_env()
     if options.video_provider == "local" and options.speech_provider == "local":
         st.info(
-            "No-cost mode is active: scene cards render on your PC and narration uses an installed "
+            "No-cost mode is active: illustrated village scenes animate on your PC and narration uses an installed "
             "Windows voice. Gemini Flash stays on its free tier unless you link billing."
         )
     elif options.video_provider == "veo":
@@ -199,7 +199,7 @@ def main() -> None:
                                 disabled=Options.from_env().video_provider != "local",
                             )
                         if Options.from_env().video_provider != "local":
-                            st.caption("Prompt revisions currently use the free local scene-card renderer. Veo revisions are not available from this panel.")
+                            st.caption("Prompt revisions currently use the free local 2D village animator. Veo revisions are not available from this panel.")
                         if revise:
                             try:
                                 revise_preview(job["id"], revision)

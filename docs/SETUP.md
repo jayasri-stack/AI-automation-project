@@ -2,7 +2,7 @@
 
 ## Provider credentials
 
-Copy `.env.example` to `.env`. The defaults use local scene cards and local speech; no Veo or
+Copy `.env.example` to `.env`. The defaults use local 2D village animation and local speech; no Veo or
 Azure request is made unless you explicitly change the provider settings.
 
 - **YouTube research:** Create a Google Cloud project, enable YouTube Data API v3, and set its API key as `YOUTUBE_API_KEY`.
@@ -18,7 +18,7 @@ FFmpeg and FFprobe must be installed separately. The FFmpeg build needs H.264 (`
 
 The channel niche is fixed in code; there is no dashboard niche selector. It is peaceful Telugu village stories set in the 1980s, with traditional vintage life, calm narration, moral values, and recurring characters in a connected serial. The dashboard searches for this niche automatically; optionally enter an episode idea to narrow the search. Results cover the last 30 days and are ranked by estimated views per day; this is a useful niche trend signal, not an official YouTube trending feed. The top three are automatically used as trend references. Their titles, descriptions, and public statistics are sent to Gemini to identify broad audience trends and write a new original story. Source videos are not downloaded or reused. Each episode continues the most recently approved installment and ends with a hook; approve or reject a pending episode before creating the next one.
 
-In free-first local mode, FFmpeg creates stylized scene cards without a video-generation API. These are assembled into a video preview but are not AI-generated motion footage. You can request prompt-based script/scene-card revisions while the draft awaits approval; each revision creates a new preview, sends a fresh Telegram notification, and invalidates old Telegram buttons. If you opt into Veo, its long-running operation names are stored in SQLite so `story-video process-pending` can poll after a restart. Once scenes are ready, the worker creates per-scene narration, mixes scene audio with narration, adds optional background music, burns subtitles into the preview, then sends approval buttons.
+In free-first local mode, Python draws simple vintage village scenes with moving villagers, clouds, birds, and other details; FFmpeg turns these frames into clips. This procedural 2D animation does not use a video-generation API, but it is not AI-generated cinematic footage. You can request prompt-based script and scene revisions while the draft awaits approval; each revision creates a new preview, sends a fresh Telegram notification, and invalidates old Telegram buttons. If you opt into Veo, its long-running operation names are stored in SQLite so `story-video process-pending` can poll after a restart. Once scenes are ready, the worker creates per-scene narration, mixes scene audio with narration, adds optional background music, burns subtitles into the preview, then sends approval buttons.
 
 Approval in Streamlit or Telegram writes a durable decision before upload begins. A rejection cannot be uploaded. The selected visibility is shown in Streamlit and Telegram; uploads default to private. A job left in `uploading` has an uncertain remote outcome after a network failure. Check YouTube Studio before any retry; the workflow deliberately avoids automatic duplicate uploads. If no video exists, confirm that in the dashboard before resetting the job to approved.
 
@@ -31,7 +31,7 @@ For daily automatic job creation, set `SCHEDULED_TOPIC` and `SCHEDULED_LANGUAGE`
 - A Telegram bot process at user sign-in.
 
 Every scheduled job still waits for approval. The desktop session must be running for the Telegram bot and local OAuth consent flow.
-Each scheduled generation uses YouTube and Gemini API quota. Local scene cards incur no provider charge. Veo or Azure may incur charges if explicitly enabled. Leave `SCHEDULED_TOPIC` empty and do not install the scheduled creator if you only want jobs started manually in Streamlit.
+Each scheduled generation uses YouTube and Gemini API quota. Local animation incurs no video-provider charge. Veo or Azure may incur charges if explicitly enabled. Leave `SCHEDULED_TOPIC` empty and do not install the scheduled creator if you only want jobs started manually in Streamlit.
 
 ## Local data and security
 

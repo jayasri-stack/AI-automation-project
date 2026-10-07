@@ -39,10 +39,10 @@ def submit_scene(prompt: str) -> str:
 
 
 def submit_local_scene(prompt: str, destination: Path) -> str:
-    """Render an offline scene card and return a completed local-operation marker."""
-    from story_video_automation.local_media import render_local_scene_card
+    """Render an offline animated village clip and return a completed local marker."""
+    from story_video_automation.local_media import render_local_animated_scene
 
-    render_local_scene_card(prompt, destination)
+    render_local_animated_scene(prompt, destination)
     return "local:completed"
 
 

@@ -78,7 +78,7 @@ def start_workflow(
 
         video_provider = Options.from_env().video_provider
         detail = (
-            "Rendering free local scene cards"
+            "Rendering free local animated village scenes"
             if video_provider == "local"
             else "Submitting asynchronous Veo scene generation jobs (paid provider)"
         )
@@ -218,7 +218,7 @@ def revise_preview(job_id: int, instructions: str) -> str:
         episode_number=int(current.get("episode_number", 1)),
         previous_episode=_previous_serial_context(exclude_job_id=job_id)[1],
     )
-    from story_video_automation.local_media import render_local_scene_card
+    from story_video_automation.local_media import render_local_animated_scene
 
     settings = get_settings()
     revision_dir = settings.output_dir / f"job_{job_id}" / f"revision_{uuid4().hex[:10]}"
@@ -228,7 +228,7 @@ def revise_preview(job_id: int, instructions: str) -> str:
         scene_path = revision_dir / f"scene_{number:02}.mp4"
         prompt = (f"Original cinematic short-film scene. {scene['visual_prompt']} "
                   "Consistent characters and art direction. No captions, logos, or watermarks.")
-        render_local_scene_card(prompt, scene_path)
+        render_local_animated_scene(prompt, scene_path)
         audio_path = scene_path.with_suffix(".wav")
         synthesize_narration(scene["narration"], audio_path, language=current["language"])
         rendered.append({**scene, "video_path": str(scene_path), "audio_path": str(audio_path)})
