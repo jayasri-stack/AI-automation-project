@@ -6,13 +6,13 @@ A local Python workflow that researches YouTube topics, creates original Telugu 
 
 ## Workflow
 
-1. Research relevant YouTube videos with YouTube Data API v3 and retain available view statistics.
+1. Find recent high-velocity videos in a niche with YouTube Data API v3 and retain available view statistics.
 2. Generate original plots, scripts, and scene descriptions with Gemini.
 3. Render local scene cards by default; optionally submit and track paid asynchronous Veo jobs.
 4. Generate narration locally by default; Azure Speech is optional.
 5. Join clips, mix narration, and add subtitles with FFmpeg.
 6. Track jobs and approval decisions in SQLite.
-7. Review previews in the Streamlit dashboard and receive Telegram approval notifications.
+7. Review and revise previews by prompt in the Streamlit dashboard and receive Telegram approval notifications.
 8. Upload to YouTube only after an explicit approval recorded in Telegram or the dashboard.
 9. Run scheduled jobs through Windows Task Scheduler.
 
@@ -71,7 +71,7 @@ Upload visibility is selected for each job in the dashboard and shown in its Tel
 
 ## Asynchronous jobs and scheduling
 
-The Streamlit dashboard lets you search YouTube, select inspiration videos, generate a story, and review the finished preview. Veo jobs are asynchronous; run `story-video process-pending` to poll them. Install current-user Windows Task Scheduler tasks with:
+The Streamlit dashboard ranks videos from the last 30 days by estimated views per day (a trend signal, not an official YouTube trending feed), lets you select inspiration videos, generate a story, revise an awaiting-approval draft with a prompt, and review the finished preview. Prompt revisions regenerate the free local scene cards; this does not create AI-generated motion footage. Veo jobs are asynchronous; run `story-video process-pending` to poll them. Install current-user Windows Task Scheduler tasks with:
 
 ```powershell
 .\scripts\install-scheduled-tasks.ps1

@@ -238,6 +238,15 @@ def list_events(job_id: int) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+def add_job_event(job_id: int, detail: str) -> None:
+    """Record a non-state-changing review or revision event."""
+    with connect() as connection:
+        connection.execute(
+            "INSERT INTO job_events(job_id, from_status, to_status, detail) VALUES (?, ?, ?, ?)",
+            (job_id, "awaiting_approval", "awaiting_approval", detail[:2000]),
+        )
+
+
 def set_job_title(job_id: int, title: str) -> None:
     with connect() as connection:
         cursor = connection.execute(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 
@@ -11,6 +12,10 @@ from story_video_automation.db import list_jobs
 from story_video_automation.options import Options
 from story_video_automation.state import get_made_for_kids, get_upload_privacy
 logger = logging.getLogger(__name__)
+
+
+def _preview_token(path: str | None) -> str:
+    return hashlib.sha256((path or "").encode("utf-8")).hexdigest()[:10]
 
 
 def _credentials() -> tuple[str, int]:
@@ -35,11 +40,12 @@ async def _send_approval(job_id: int) -> None:
     if job is None or job["status"] != "awaiting_approval":
         raise ValueError("Only jobs awaiting approval can be sent to Telegram")
     made_for_kids = get_made_for_kids(job_id)
+    token_id = f"{job_id}:{_preview_token(job.get('preview_path'))}"
     buttons = []
     if made_for_kids is not None:
         buttons.append([
-            InlineKeyboardButton("Approve and upload", callback_data=f"approve:{job_id}"),
-            InlineKeyboardButton("Reject", callback_data=f"reject:{job_id}"),
+            InlineKeyboardButton("Approve and upload", callback_data=f"approve:{token_id}"),
+            InlineKeyboardButton("Reject", callback_data=f"reject:{token_id}"),
         ])
     buttons.append([InlineKeyboardButton(
         "Open preview dashboard",
@@ -103,9 +109,16 @@ async def _on_decision(update: object, context: object) -> None:
         await query.edit_message_text("This approval action is not authorized for this chat.")
         return
     payload = str(query.data or "")
-    action, separator, raw_job_id = payload.partition(":")
-    if not separator or action not in {"approve", "reject"} or not raw_job_id.isdigit():
+    parts = payload.split(":")
+    if len(parts) != 3 or parts[0] not in {"approve", "reject"} or not parts[1].isdigit():
         await query.edit_message_text("This approval action is invalid.")
+        return
+    action, raw_job_id, sent_token = parts
+    current_job = next((item for item in list_jobs() if item["id"] == int(raw_job_id)), None)
+    if current_job is None or sent_token != _preview_token(current_job.get("preview_path")):
+        await query.edit_message_text(
+            "This preview has changed since this message was sent. Open the dashboard and review the latest version."
+        )
         return
     decision = "approved" if action == "approve" else "rejected"
     user = getattr(update, "effective_user", None)
@@ -147,7 +160,7 @@ def run_bot() -> None:
         raise RuntimeError('Install the "telegram" extra to run the bot') from exc
     app = Application.builder().token(token).build()
     app.add_handler(CommandHandler("start", _on_start))
-    app.add_handler(CallbackQueryHandler(_on_decision, pattern=r"^(approve|reject):\d+$"))
+    app.add_handler(CallbackQueryHandler(_on_decision, pattern=r"^(approve|reject):\d+:[a-f0-9]{10}$"))
     app.run_polling(
         poll_interval=Options.from_env().telegram_poll_seconds,
         allowed_updates=["message", "callback_query"],

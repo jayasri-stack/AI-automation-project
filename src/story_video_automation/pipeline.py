@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from uuid import uuid4
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ from story_video_automation.media import render_video
 from story_video_automation.options import Options
 from story_video_automation.state import (
     create_workflow_job,
+    add_job_event,
     get_story,
     pending_video_jobs,
     save_research,
@@ -174,6 +176,63 @@ def process_pending() -> dict[str, int]:
             counts["failed"] += 1
             logger.exception("Workflow processing failed for job %s", job_id)
     return counts
+
+
+def revise_preview(job_id: int, instructions: str) -> str:
+    """Apply a prompt revision to a local-mode draft and replace its review preview."""
+    from story_video_automation.db import list_jobs
+
+    instructions = instructions.strip()
+    if not instructions:
+        raise ValueError("Describe the changes you want first")
+    job = next((item for item in list_jobs() if item["id"] == job_id), None)
+    if not job or job["status"] != "awaiting_approval":
+        raise ValueError("Only a video awaiting approval can be revised")
+    if Options.from_env().video_provider != "local":
+        raise ValueError("Prompt revisions are currently available only in free local mode")
+    current = get_story(job_id)
+    if current is None:
+        raise RuntimeError("This job has no saved story to revise")
+
+    revised = generate_story(
+        job["title"], current["language"], revision_prompt=instructions,
+        previous_story=current,
+    )
+    from story_video_automation.local_media import render_local_scene_card
+
+    settings = get_settings()
+    revision_dir = settings.output_dir / f"job_{job_id}" / f"revision_{uuid4().hex[:10]}"
+    revision_dir.mkdir(parents=True, exist_ok=True)
+    rendered: list[dict[str, Any]] = []
+    for number, scene in enumerate(revised["scenes"], 1):
+        scene_path = revision_dir / f"scene_{number:02}.mp4"
+        prompt = (f"Original cinematic short-film scene. {scene['visual_prompt']} "
+                  "Consistent characters and art direction. No captions, logos, or watermarks.")
+        render_local_scene_card(prompt, scene_path)
+        audio_path = scene_path.with_suffix(".wav")
+        synthesize_narration(scene["narration"], audio_path, language=current["language"])
+        rendered.append({**scene, "video_path": str(scene_path), "audio_path": str(audio_path)})
+
+    preview = revision_dir / "preview.mp4"
+    music_setting = os.getenv("BACKGROUND_MUSIC", "").strip()
+    music_path = Path(music_setting) if music_setting else None
+    if music_path and not music_path.is_file():
+        raise FileNotFoundError(f"BACKGROUND_MUSIC file not found: {music_path}")
+    render_video(rendered, revision_dir, preview, background_music=music_path)
+
+    # Persist the new story only after all media renders successfully; approval remains pending.
+    save_story(job_id, revised["synopsis"], revised["script"], current["language"], revised["scenes"])
+    for number, scene in enumerate(rendered, 1):
+        update_scene(job_id, number, operation_name="local:completed", operation_state="done",
+                     video_path=scene["video_path"], audio_path=scene["audio_path"])
+    set_job_title(job_id, revised["title"])
+    set_preview_path(job_id, str(preview.resolve()))
+    add_job_event(job_id, f"Draft revised using prompt: {instructions}")
+    try:
+        send_approval_notification(job_id)
+    except Exception:
+        logger.exception("Could not send revised Telegram approval notification for job %s", job_id)
+    return str(preview.resolve())
 
 
 def _fail_if_active(job_id: int, error: Exception) -> None:

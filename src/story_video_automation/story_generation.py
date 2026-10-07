@@ -13,6 +13,8 @@ def generate_story(
     topic: str,
     language: str,
     scene_count: int | None = None,
+    revision_prompt: str | None = None,
+    previous_story: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Generate a structured, original script based on topic-level research signals."""
     settings = get_settings()
@@ -30,7 +32,16 @@ def generate_story(
 
     lang = "Telugu" if language == "te" else "English"
     count = scene_count or options.scene_count
+    revision = ""
+    if revision_prompt:
+        revision = f"""
+Revise the previous story using these requested changes: {revision_prompt}
+Preserve aspects not mentioned in the request. Previous synopsis: {previous_story.get('synopsis', '') if previous_story else ''}
+Previous script: {previous_story.get('script', '') if previous_story else ''}
+Previous scene prompts and narration: {json.dumps(previous_story.get('scenes', []), ensure_ascii=False) if previous_story else '[]'}
+"""
     prompt = f"""Create a wholly original short-film story in {lang} about: {topic}.
+{revision}
 
 Return only valid JSON with this exact shape:
 {{"title":"...","synopsis":"...","script":"...","scenes":[

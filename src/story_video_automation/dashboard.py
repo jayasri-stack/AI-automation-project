@@ -22,13 +22,14 @@ from story_video_automation.state import (
 )
 from story_video_automation.youtube_research import search_videos
 from story_video_automation.telegram_bot import send_approval_notification
+from story_video_automation.pipeline import revise_preview
 
 
 def main() -> None:
     initialize()
     st.set_page_config(page_title="AI Automation Project", layout="wide")
     st.title("AI Story Video Studio")
-    st.caption("Research a topic, select references, generate a story, then review before upload.")
+    st.caption("Find recent high-velocity videos in your niche, select references, generate a draft, revise it by prompt, then approve before upload.")
     options = Options.from_env()
     if options.video_provider == "local" and options.speech_provider == "local":
         st.info(
@@ -44,7 +45,7 @@ def main() -> None:
 
     with st.expander("Create a story video", expanded=not bool(st.session_state.get("research_results"))):
         with st.form("research-form"):
-            topic = st.text_input("Topic or search query", placeholder="A Telugu folk tale about courage")
+            topic = st.text_input("Niche or search query", placeholder="Telugu village cooking, personal finance, folk stories")
             language = st.selectbox("Script language", [("te", "Telugu"), ("en", "English")],
                                     format_func=lambda item: item[1])[0]
             upload_privacy = st.selectbox(
@@ -67,7 +68,7 @@ def main() -> None:
                 index={None: 0, True: 1, False: 2}[configured_audience],
                 help="This declaration is sent to YouTube with an approved upload.",
             )
-            submitted = st.form_submit_button("Search YouTube")
+            submitted = st.form_submit_button("Find trending niche videos")
         if submitted:
             if not topic.strip():
                 st.error("Enter a topic to search.")
@@ -81,18 +82,21 @@ def main() -> None:
 
         results = st.session_state.get("research_results", [])
         if results:
-            st.markdown("#### YouTube search results — select videos to keep with this job")
-            st.caption("Titles, links, and statistics below come from YouTube. They are not sent to Gemini.")
+            st.markdown("#### Recent YouTube videos in this niche — choose inspiration")
+            st.caption("Ranked by estimated views per day among videos published in the last 30 days. This is a trend signal, not an official YouTube trending feed. Source titles and statistics are not sent to Gemini.")
             selected_ids: list[str] = []
             for result in results:
-                cols = st.columns([0.6, 4, 1])
+                cols = st.columns([0.6, 1, 4, 1.5])
                 with cols[0]:
                     selected = st.checkbox("Select", key=f"select-{result['video_id']}",
                                             label_visibility="collapsed")
                 with cols[1]:
-                    st.markdown(f"[{result['title']}]({result['url']})  \n{result['channel_title']}")
+                    if result.get("thumbnail_url"):
+                        st.image(result["thumbnail_url"], use_container_width=True)
                 with cols[2]:
-                    st.caption(f"Views: {result['view_count'] if result['view_count'] is not None else 'N/A'}")
+                    st.markdown(f"[{result['title']}]({result['url']})  \n{result['channel_title']}")
+                with cols[3]:
+                    st.caption(f"Views: {result['view_count'] if result['view_count'] is not None else 'N/A'}\n\nEst. views/day: {result.get('views_per_day', 0):,.0f}")
                 if selected:
                     selected_ids.append(result["video_id"])
             selected = [item for item in results if item["video_id"] in selected_ids]
@@ -176,6 +180,26 @@ def main() -> None:
                 preview = job.get("preview_path")
                 if preview and Path(preview).is_file():
                     st.video(preview)
+                    if job["status"] == "awaiting_approval":
+                        with st.form(f"revise-preview-{job['id']}"):
+                            revision = st.text_area(
+                                "Change this draft with a prompt",
+                                placeholder="Make the opening more dramatic; add a hopeful ending; simplify the narration.",
+                                key=f"revision-prompt-{job['id']}",
+                            )
+                            revise = st.form_submit_button(
+                                "Apply prompt and regenerate preview",
+                                disabled=Options.from_env().video_provider != "local",
+                            )
+                        if Options.from_env().video_provider != "local":
+                            st.caption("Prompt revisions currently use the free local scene-card renderer. Veo revisions are not available from this panel.")
+                        if revise:
+                            try:
+                                revise_preview(job["id"], revision)
+                                st.success("Updated preview created. Telegram was notified to review the new version.")
+                                st.rerun()
+                            except Exception as exc:
+                                st.error(f"Could not revise this draft: {exc}")
                 elif job["status"] == "awaiting_approval":
                     st.warning("This job is awaiting approval, but its preview file is unavailable.")
             with right:

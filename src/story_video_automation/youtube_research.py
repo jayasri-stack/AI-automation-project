@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from story_video_automation.config import get_settings
@@ -34,7 +35,10 @@ def search_videos(query: str, language: str, limit: int | None = None) -> list[d
         q=query.strip(),
         type="video",
         maxResults=max(1, min(50, count)),
-        order="relevance",
+        # Search API has no first-party "trending by niche" endpoint. Restrict to recent
+        # uploads and request the most-viewed candidates, then rank by estimated views/day.
+        order="viewCount",
+        publishedAfter=(datetime.now(timezone.utc) - timedelta(days=30)).isoformat(),
         safeSearch="moderate",
         regionCode=options.youtube_region,
         relevanceLanguage="te" if language == "te" else "en",
@@ -70,6 +74,15 @@ def search_videos(query: str, language: str, limit: int | None = None) -> list[d
             "thumbnail_url": _thumbnail(snippet.get("thumbnails", {})),
             "duration": item.get("contentDetails", {}).get("duration"),
         })
+    now = datetime.now(timezone.utc)
+    for video in ordered:
+        try:
+            published = datetime.fromisoformat(str(video["published_at"]).replace("Z", "+00:00"))
+            age_days = max(1, (now - published).days)
+            video["views_per_day"] = (video["view_count"] or 0) / age_days
+        except (TypeError, ValueError):
+            video["views_per_day"] = 0
+    ordered.sort(key=lambda video: video["views_per_day"], reverse=True)
     return ordered
 
 
