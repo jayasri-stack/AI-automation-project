@@ -23,6 +23,7 @@ from story_video_automation.state import (
     set_preview_path,
     set_upload_settings,
     get_channel_niche,
+    list_research,
     transition,
     update_scene,
 )
@@ -61,9 +62,11 @@ def start_workflow(
         save_research(job_id, sources)
         transition(job_id, "writing", "Generating an original story and scene prompts")
         niche = (channel_niche or get_channel_niche()).strip()
-        story = generate_story(topic, language, channel_niche=niche)
+        story = generate_story(
+            topic, language, channel_niche=niche, trend_references=sources,
+        )
         set_job_title(job_id, story["title"])
-        save_story(job_id, story["synopsis"], story["script"], language, story["scenes"])
+        save_story(job_id, story["synopsis"], story["script"], language, story["scenes"], niche)
 
         video_provider = Options.from_env().video_provider
         detail = (
@@ -202,7 +205,8 @@ def revise_preview(job_id: int, instructions: str) -> str:
 
     revised = generate_story(
         job["title"], current["language"], revision_prompt=instructions,
-        previous_story=current, channel_niche=get_channel_niche(),
+        previous_story=current, channel_niche=current.get("channel_niche") or get_channel_niche(),
+        trend_references=list_research(job_id),
     )
     from story_video_automation.local_media import render_local_scene_card
 
@@ -227,7 +231,10 @@ def revise_preview(job_id: int, instructions: str) -> str:
     render_video(rendered, revision_dir, preview, background_music=music_path)
 
     # Persist the new story only after all media renders successfully; approval remains pending.
-    save_story(job_id, revised["synopsis"], revised["script"], current["language"], revised["scenes"])
+    save_story(
+        job_id, revised["synopsis"], revised["script"], current["language"],
+        revised["scenes"], current.get("channel_niche") or get_channel_niche(),
+    )
     for number, scene in enumerate(rendered, 1):
         update_scene(job_id, number, operation_name="local:completed", operation_state="done",
                      video_path=scene["video_path"], audio_path=scene["audio_path"])

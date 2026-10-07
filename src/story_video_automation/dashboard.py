@@ -26,13 +26,6 @@ from story_video_automation.youtube_research import search_videos
 from story_video_automation.telegram_bot import send_approval_notification
 from story_video_automation.pipeline import revise_preview
 
-CHANNEL_NICHES = [
-    "Telugu folk tales", "Telugu moral stories", "Telugu mythology",
-    "Telugu history", "Telugu cooking", "Science facts", "Personal finance",
-    "Education and careers", "Travel", "Custom niche",
-]
-
-
 def main() -> None:
     initialize()
     st.set_page_config(page_title="AI Automation Project", layout="wide")
@@ -54,20 +47,17 @@ def main() -> None:
     with st.expander("Create a story video", expanded=not bool(st.session_state.get("research_results"))):
         with st.form("research-form"):
             saved_niche = get_channel_niche()
-            niche_choice = st.selectbox(
-                "Your channel's main niche",
-                CHANNEL_NICHES,
-                index=CHANNEL_NICHES.index(saved_niche) if saved_niche in CHANNEL_NICHES else len(CHANNEL_NICHES) - 1,
-                help="This is saved as your channel focus and guides future story style.",
+            channel_niche = st.text_area(
+                "Your channel niche and signature style",
+                value=saved_niche,
+                height=100,
+                help="Set this once and keep it consistent. Example: peaceful Telugu village stories set in the 1980s, traditional life, calm narration, and a gentle moral.",
             )
-            custom_niche = st.text_input(
-                "Enter your custom channel niche",
-                value=saved_niche if niche_choice == "Custom niche" else "",
-                placeholder="For example: Telugu village mystery stories",
-                disabled=niche_choice != "Custom niche",
+            topic = st.text_input(
+                "Optional episode idea or extra search words",
+                placeholder="Leave blank to search the whole niche; or add: a lost calf returns home",
+                help="The niche is always included in the YouTube search. Add a specific theme to narrow today's search.",
             )
-            channel_niche = custom_niche.strip() if niche_choice == "Custom niche" else niche_choice
-            topic = st.text_input("Niche or search query", placeholder="Telugu village cooking, personal finance, folk stories")
             language = st.selectbox("Script language", [("te", "Telugu"), ("en", "English")],
                                     format_func=lambda item: item[1])[0]
             upload_privacy = st.selectbox(
@@ -92,12 +82,15 @@ def main() -> None:
             )
             submitted = st.form_submit_button("Find trending niche videos")
         if submitted:
-            if not topic.strip():
-                st.error("Enter a topic to search.")
+            if not channel_niche.strip():
+                st.error("Describe your channel niche and style.")
             else:
                 try:
-                    st.session_state["research_results"] = search_videos(topic, language)
-                    st.session_state["research_topic"] = topic.strip()
+                    set_channel_niche(channel_niche)
+                    search_query = f"{channel_niche.strip()} {topic.strip()}".strip()
+                    st.session_state["research_results"] = search_videos(search_query, language)
+                    st.session_state["research_topic"] = topic.strip() or channel_niche.strip()
+                    st.session_state["research_niche"] = channel_niche.strip()
                     st.session_state["research_language"] = language
                 except Exception as exc:
                     st.error(f"YouTube search failed: {exc}")
@@ -105,7 +98,7 @@ def main() -> None:
         results = st.session_state.get("research_results", [])
         if results:
             st.markdown("#### Recent YouTube videos in this niche — choose inspiration")
-            st.caption("Ranked by estimated views per day among videos published in the last 30 days. This is a trend signal, not an official YouTube trending feed. Source titles and statistics are not sent to Gemini.")
+            st.caption("Ranked by estimated views per day among videos published in the last 30 days. This is a trend signal, not an official YouTube trending feed. If you select videos, their titles, descriptions, and public statistics are sent to Gemini to identify broad trends and create a new original story; source footage is not downloaded or reused.")
             selected_ids: list[str] = []
             for result in results:
                 cols = st.columns([0.6, 1, 4, 1.5])
@@ -131,11 +124,11 @@ def main() -> None:
                         st.session_state["research_language"],
                         references=selected,
                         upload_privacy=upload_privacy,
-                        channel_niche=channel_niche,
+                        channel_niche=st.session_state.get("research_niche", channel_niche),
                         made_for_kids=(True if audience_choice == "yes" else
                                        False if audience_choice == "no" else None),
                     )
-                    set_channel_niche(channel_niche)
+                    set_channel_niche(st.session_state.get("research_niche", channel_niche))
                     st.session_state.pop("research_results", None)
                     mode = Options.from_env().video_provider
                     if mode == "local":

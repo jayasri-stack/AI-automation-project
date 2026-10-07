@@ -71,7 +71,7 @@ Upload visibility is selected for each job in the dashboard and shown in its Tel
 
 ## Asynchronous jobs and scheduling
 
-The Streamlit dashboard lets you choose and save a channel niche, ranks videos from the last 30 days by estimated views per day (a trend signal, not an official YouTube trending feed), lets you select inspiration videos, generate niche-aligned stories, revise an awaiting-approval draft with a prompt, and review the finished preview. Prompt revisions regenerate the free local scene cards; this does not create AI-generated motion footage. Veo jobs are asynchronous; run `story-video process-pending` to poll them. Install current-user Windows Task Scheduler tasks with:
+The Streamlit dashboard lets you save a detailed channel identity (for example, peaceful 1980s Telugu village stories with tradition and moral lessons), optionally add a daily episode idea, and search YouTube within that niche. Results from the last 30 days are ranked by estimated views per day, a trend signal rather than an official YouTube trending feed. Metadata from the videos you select is sent to Gemini to identify broad audience interests and write a new original story; source footage is not downloaded or reused. You can revise an awaiting-approval draft with a prompt and review the preview. Prompt revisions regenerate the free local scene cards; this does not create AI-generated motion footage. Veo jobs are asynchronous; run `story-video process-pending` to poll them. Install current-user Windows Task Scheduler tasks with:
 
 ```powershell
 .\scripts\install-scheduled-tasks.ps1

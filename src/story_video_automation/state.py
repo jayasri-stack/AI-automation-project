@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS stories (
     synopsis TEXT NOT NULL,
     script TEXT NOT NULL,
     language TEXT NOT NULL CHECK (language IN ('te', 'en')),
+    channel_niche TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -109,6 +110,11 @@ def initialize() -> None:
             connection.execute(
                 "ALTER TABLE job_upload_settings ADD COLUMN made_for_kids INTEGER"
             )
+        story_columns = {
+            row["name"] for row in connection.execute("PRAGMA table_info(stories)")
+        }
+        if "channel_niche" not in story_columns:
+            connection.execute("ALTER TABLE stories ADD COLUMN channel_niche TEXT NOT NULL DEFAULT ''")
         connection.execute(
             "DELETE FROM research_videos WHERE collected_at < datetime('now', '-30 days')"
         )
@@ -130,7 +136,10 @@ def create_workflow_job(title: str, language: str, query: str) -> int:
 def get_channel_niche() -> str:
     with connect() as connection:
         row = connection.execute("SELECT niche FROM channel_profile WHERE id = 1").fetchone()
-    return str(row["niche"]) if row else "Telugu folk tales"
+    return str(row["niche"]) if row else (
+        "Peaceful, calm Telugu village stories set in the 1980s, with traditional daily life, "
+        "pleasant narration, and meaningful moral lessons."
+    )
 
 
 def set_channel_niche(niche: str) -> None:
@@ -203,13 +212,15 @@ def save_research(job_id: int, videos: list[dict[str, Any]]) -> None:
 
 
 def save_story(job_id: int, synopsis: str, script: str, language: str,
-               scenes: list[dict[str, str]]) -> None:
+               scenes: list[dict[str, str]], channel_niche: str = "") -> None:
     with connect() as connection:
         connection.execute(
-            """INSERT INTO stories(job_id, synopsis, script, language) VALUES (?, ?, ?, ?)
+            """INSERT INTO stories(job_id, synopsis, script, language, channel_niche)
+               VALUES (?, ?, ?, ?, ?)
                ON CONFLICT(job_id) DO UPDATE SET synopsis=excluded.synopsis,
-                 script=excluded.script, language=excluded.language, created_at=CURRENT_TIMESTAMP""",
-            (job_id, synopsis, script, language),
+                 script=excluded.script, language=excluded.language,
+                 channel_niche=excluded.channel_niche, created_at=CURRENT_TIMESTAMP""",
+            (job_id, synopsis, script, language, channel_niche),
         )
         connection.execute("DELETE FROM scenes WHERE job_id = ?", (job_id,))
         connection.executemany(
