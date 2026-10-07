@@ -15,6 +15,7 @@ def generate_story(
     scene_count: int | None = None,
     revision_prompt: str | None = None,
     previous_story: dict[str, Any] | None = None,
+    channel_niche: str | None = None,
 ) -> dict[str, Any]:
     """Generate a structured, original script based on topic-level research signals."""
     settings = get_settings()
@@ -40,7 +41,11 @@ Preserve aspects not mentioned in the request. Previous synopsis: {previous_stor
 Previous script: {previous_story.get('script', '') if previous_story else ''}
 Previous scene prompts and narration: {json.dumps(previous_story.get('scenes', []), ensure_ascii=False) if previous_story else '[]'}
 """
-    prompt = f"""Create a wholly original short-film story in {lang} about: {topic}.
+    niche_context = channel_niche or topic
+    prompt = f"""Create a wholly original short-film story in {lang} for a YouTube channel focused on the niche: {niche_context}.
+Today's video topic: {topic}.
+Keep the story, themes, vocabulary, and visual style clearly aligned with this channel niche.
+Make this episode original and engaging while preserving a recognizable channel identity.
 {revision}
 
 Return only valid JSON with this exact shape:

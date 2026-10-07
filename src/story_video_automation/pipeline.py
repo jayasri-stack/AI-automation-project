@@ -22,6 +22,7 @@ from story_video_automation.state import (
     set_job_title,
     set_preview_path,
     set_upload_settings,
+    get_channel_niche,
     transition,
     update_scene,
 )
@@ -39,6 +40,7 @@ def start_workflow(
     references: list[dict[str, Any]] | None = None,
     upload_privacy: str | None = None,
     made_for_kids: bool | None = None,
+    channel_niche: str | None = None,
 ) -> int:
     """Create a job from selected research using local scenes by default."""
     topic = topic.strip()
@@ -58,7 +60,8 @@ def start_workflow(
         transition(job_id, "researching", "Collecting current YouTube search metadata")
         save_research(job_id, sources)
         transition(job_id, "writing", "Generating an original story and scene prompts")
-        story = generate_story(topic, language)
+        niche = (channel_niche or get_channel_niche()).strip()
+        story = generate_story(topic, language, channel_niche=niche)
         set_job_title(job_id, story["title"])
         save_story(job_id, story["synopsis"], story["script"], language, story["scenes"])
 
@@ -199,7 +202,7 @@ def revise_preview(job_id: int, instructions: str) -> str:
 
     revised = generate_story(
         job["title"], current["language"], revision_prompt=instructions,
-        previous_story=current,
+        previous_story=current, channel_niche=get_channel_niche(),
     )
     from story_video_automation.local_media import render_local_scene_card
 

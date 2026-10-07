@@ -83,6 +83,11 @@ CREATE TABLE IF NOT EXISTS job_upload_settings (
     made_for_kids INTEGER CHECK (made_for_kids IN (0, 1)),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS channel_profile (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    niche TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
@@ -120,6 +125,25 @@ def create_workflow_job(title: str, language: str, query: str) -> int:
             (job_id, f"Research query: {query.strip()}"),
         )
     return job_id
+
+
+def get_channel_niche() -> str:
+    with connect() as connection:
+        row = connection.execute("SELECT niche FROM channel_profile WHERE id = 1").fetchone()
+    return str(row["niche"]) if row else "Telugu folk tales"
+
+
+def set_channel_niche(niche: str) -> None:
+    niche = niche.strip()
+    if not niche:
+        raise ValueError("Choose or enter a channel niche")
+    with connect() as connection:
+        connection.execute(
+            """INSERT INTO channel_profile(id, niche) VALUES (1, ?)
+               ON CONFLICT(id) DO UPDATE SET niche=excluded.niche,
+                 updated_at=CURRENT_TIMESTAMP""",
+            (niche[:120],),
+        )
 
 
 def transition(job_id: int, target: str, detail: str | None = None) -> None:

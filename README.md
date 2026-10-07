@@ -71,7 +71,7 @@ Upload visibility is selected for each job in the dashboard and shown in its Tel
 
 ## Asynchronous jobs and scheduling
 
-The Streamlit dashboard ranks videos from the last 30 days by estimated views per day (a trend signal, not an official YouTube trending feed), lets you select inspiration videos, generate a story, revise an awaiting-approval draft with a prompt, and review the finished preview. Prompt revisions regenerate the free local scene cards; this does not create AI-generated motion footage. Veo jobs are asynchronous; run `story-video process-pending` to poll them. Install current-user Windows Task Scheduler tasks with:
+The Streamlit dashboard lets you choose and save a channel niche, ranks videos from the last 30 days by estimated views per day (a trend signal, not an official YouTube trending feed), lets you select inspiration videos, generate niche-aligned stories, revise an awaiting-approval draft with a prompt, and review the finished preview. Prompt revisions regenerate the free local scene cards; this does not create AI-generated motion footage. Veo jobs are asynchronous; run `story-video process-pending` to poll them. Install current-user Windows Task Scheduler tasks with:
 
 ```powershell
 .\scripts\install-scheduled-tasks.ps1

@@ -19,10 +19,18 @@ from story_video_automation.state import (
     delete_job,
     reset_uncertain_upload,
     set_upload_settings,
+    get_channel_niche,
+    set_channel_niche,
 )
 from story_video_automation.youtube_research import search_videos
 from story_video_automation.telegram_bot import send_approval_notification
 from story_video_automation.pipeline import revise_preview
+
+CHANNEL_NICHES = [
+    "Telugu folk tales", "Telugu moral stories", "Telugu mythology",
+    "Telugu history", "Telugu cooking", "Science facts", "Personal finance",
+    "Education and careers", "Travel", "Custom niche",
+]
 
 
 def main() -> None:
@@ -45,6 +53,20 @@ def main() -> None:
 
     with st.expander("Create a story video", expanded=not bool(st.session_state.get("research_results"))):
         with st.form("research-form"):
+            saved_niche = get_channel_niche()
+            niche_choice = st.selectbox(
+                "Your channel's main niche",
+                CHANNEL_NICHES,
+                index=CHANNEL_NICHES.index(saved_niche) if saved_niche in CHANNEL_NICHES else len(CHANNEL_NICHES) - 1,
+                help="This is saved as your channel focus and guides future story style.",
+            )
+            custom_niche = st.text_input(
+                "Enter your custom channel niche",
+                value=saved_niche if niche_choice == "Custom niche" else "",
+                placeholder="For example: Telugu village mystery stories",
+                disabled=niche_choice != "Custom niche",
+            )
+            channel_niche = custom_niche.strip() if niche_choice == "Custom niche" else niche_choice
             topic = st.text_input("Niche or search query", placeholder="Telugu village cooking, personal finance, folk stories")
             language = st.selectbox("Script language", [("te", "Telugu"), ("en", "English")],
                                     format_func=lambda item: item[1])[0]
@@ -109,9 +131,11 @@ def main() -> None:
                         st.session_state["research_language"],
                         references=selected,
                         upload_privacy=upload_privacy,
+                        channel_niche=channel_niche,
                         made_for_kids=(True if audience_choice == "yes" else
                                        False if audience_choice == "no" else None),
                     )
+                    set_channel_niche(channel_niche)
                     st.session_state.pop("research_results", None)
                     mode = Options.from_env().video_provider
                     if mode == "local":
