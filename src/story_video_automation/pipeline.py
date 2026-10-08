@@ -53,8 +53,6 @@ def start_workflow(
     )
     if not sources:
         raise RuntimeError("No YouTube references were selected or returned")
-    _ensure_previous_episode_reviewed()
-
     job_id = create_workflow_job(topic[:100], language, topic)
     try:
         privacy = upload_privacy or Options.from_env().upload_privacy
@@ -285,19 +283,6 @@ def _previous_serial_context(
         return 1, None
     number, previous = max(episodes, key=lambda item: item[0])
     return number + 1, previous
-
-
-def _ensure_previous_episode_reviewed() -> None:
-    """Require a decision before creating the next installment in the serial."""
-    for job in list_jobs():
-        if job["status"] != "awaiting_approval":
-            continue
-        story = get_story(int(job["id"]))
-        if story and story.get("channel_niche") == CHANNEL_NICHE:
-            raise ValueError(
-                f"Episode {story.get('episode_number', 1)} is still awaiting review. "
-                "Approve or reject it before creating the next episode."
-            )
 
 
 def _fail_if_active(job_id: int, error: Exception) -> None:

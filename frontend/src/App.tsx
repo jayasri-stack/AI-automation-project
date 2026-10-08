@@ -42,6 +42,55 @@ type Job = {
 const API = "";
 const savedToken = () => window.localStorage.getItem("story-studio-api-token") ?? "";
 
+function PreviewVideo({
+  jobId,
+  previewPath,
+  token,
+}: {
+  jobId: number;
+  previewPath: string;
+  token: string;
+}) {
+  const [src, setSrc] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let objectUrl = "";
+    setSrc("");
+    setError("");
+    void fetch(`/api/jobs/${jobId}/preview`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Preview failed to load (${response.status}).`);
+        return response.blob();
+      })
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(cause instanceof Error ? cause.message : "Preview failed to load.");
+        }
+      });
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [jobId, previewPath, token]);
+
+  return (
+    <>
+      {error && <div className="notice error">{error}</div>}
+      {src && <video className="preview-video" controls preload="metadata" src={src} />}
+      {!src && !error && <p className="fine-print">Loading video preview…</p>}
+    </>
+  );
+}
+
 export default function App() {
   const [token, setToken] = useState(savedToken);
   const [tokenDraft, setTokenDraft] = useState(savedToken);
@@ -418,11 +467,10 @@ export default function App() {
               </div>
               {selected.error && <div className="notice error">{selected.error}</div>}
               {selected.preview_path && (
-                <video
-                  className="preview-video"
-                  controls
-                  preload="metadata"
-                  src={`/api/jobs/${selected.id}/preview`}
+                <PreviewVideo
+                  jobId={selected.id}
+                  previewPath={selected.preview_path}
+                  token={token}
                 />
               )}
               {selected.story && (

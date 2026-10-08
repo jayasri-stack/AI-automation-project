@@ -7,7 +7,7 @@ import json
 from typing import Any
 
 from story_video_automation.config import get_settings
-from story_video_automation.db import connect, create_job, initialize_database
+from story_video_automation.db import connect, initialize_database
 
 ACTIVE = {
     "queued": {"researching", "failed"},
@@ -136,8 +136,29 @@ def create_workflow_job(title: str, language: str, query: str) -> int:
     if not title.strip() or not query.strip():
         raise ValueError("A title and research query are required")
     initialize()
-    job_id = create_job(title.strip(), language)
     with connect() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        active = connection.execute(
+            """SELECT id, status FROM jobs
+               WHERE status IN ('queued', 'researching', 'writing', 'generating_video',
+                                'narrating', 'editing', 'awaiting_approval')
+               ORDER BY id DESC LIMIT 1"""
+        ).fetchone()
+        if active is not None:
+            if active["status"] == "awaiting_approval":
+                raise ValueError(
+                    f"Episode job {active['id']} is awaiting review. Approve or reject it "
+                    "before creating the next episode."
+                )
+            raise ValueError(
+                f"Episode job {active['id']} is still processing. Wait for it to finish "
+                "before creating the next episode."
+            )
+        cursor = connection.execute(
+            "INSERT INTO jobs (title, language, status) VALUES (?, ?, 'queued')",
+            (title.strip(), language),
+        )
+        job_id = int(cursor.lastrowid)
         connection.execute(
             "INSERT INTO job_events (job_id, from_status, to_status, detail) VALUES (?, NULL, 'queued', ?)",
             (job_id, f"Research query: {query.strip()}"),

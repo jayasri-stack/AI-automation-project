@@ -36,7 +36,9 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize()
-    if os.getenv("ENVIRONMENT", "development").lower() == "production" and not os.getenv("API_AUTH_TOKEN"):
+    api_token = os.getenv("API_AUTH_TOKEN", "").strip()
+    environment = os.getenv("ENVIRONMENT", "development").strip().lower()
+    if environment == "production" and not api_token:
         raise RuntimeError("API_AUTH_TOKEN is required when ENVIRONMENT=production")
     yield
 
@@ -122,7 +124,12 @@ def preview(job_id: int) -> FileResponse:
         raise HTTPException(status_code=404, detail="Preview not found")
     if not preview_path.is_file():
         raise HTTPException(status_code=404, detail="Preview file is missing")
-    return FileResponse(preview_path, media_type="video/mp4", filename=f"job-{job_id}.mp4")
+    return FileResponse(
+        preview_path,
+        media_type="video/mp4",
+        filename=f"job-{job_id}.mp4",
+        content_disposition_type="inline",
+    )
 
 
 @router.post("/research")

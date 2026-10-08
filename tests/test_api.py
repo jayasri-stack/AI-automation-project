@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -71,3 +72,52 @@ def test_api_token_is_required_when_configured(client: TestClient, monkeypatch) 
 
     assert denied.status_code == 401
     assert allowed.status_code == 200
+
+
+def test_production_refuses_a_blank_api_token(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "api.sqlite3"))
+    monkeypatch.setenv("OUTPUT_DIR", str(tmp_path / "generated"))
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("API_AUTH_TOKEN", "   ")
+
+    with pytest.raises(RuntimeError, match="API_AUTH_TOKEN is required"):
+        with TestClient(api.app):
+            pass
+
+
+def test_preview_is_inline_and_requires_the_configured_token(
+    client: TestClient, monkeypatch, tmp_path: Path
+) -> None:
+    job_id = create_job("Village episode", "te")
+    preview = tmp_path / "generated" / f"job_{job_id}" / "preview.mp4"
+    preview.parent.mkdir(parents=True)
+    preview.write_bytes(b"sample-video")
+    with connect() as connection:
+        connection.execute("UPDATE jobs SET preview_path=? WHERE id=?", (str(preview), job_id))
+    monkeypatch.setenv("API_AUTH_TOKEN", "preview-test-token")
+
+    denied = client.get(f"/api/jobs/{job_id}/preview")
+    allowed = client.get(
+        f"/api/jobs/{job_id}/preview",
+        headers={"Authorization": "Bearer preview-test-token"},
+    )
+
+    assert denied.status_code == 401
+    assert allowed.status_code == 200
+    assert allowed.content == b"sample-video"
+    assert allowed.headers["content-type"] == "video/mp4"
+    assert allowed.headers["content-disposition"].startswith("inline;")
+
+
+def test_preview_rejects_paths_outside_the_output_directory(
+    client: TestClient, tmp_path: Path
+) -> None:
+    job_id = create_job("Village episode", "te")
+    outside = tmp_path / "outside.mp4"
+    outside.write_bytes(b"not-for-preview")
+    with connect() as connection:
+        connection.execute("UPDATE jobs SET preview_path=? WHERE id=?", (str(outside), job_id))
+
+    response = client.get(f"/api/jobs/{job_id}/preview")
+
+    assert response.status_code == 404
