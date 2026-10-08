@@ -47,6 +47,41 @@ pytest -q
 
 The package includes YouTube research, Gemini story writing, local animated village scenes, optional asynchronous Veo generation, local or optional Azure narration, FFmpeg editing, SQLite persistence, Streamlit review, Telegram approvals, and YouTube upload guarded by a persisted approval decision.
 
+## Browser dashboard and API
+
+The React dashboard is the main browser interface. It searches recent videos in the fixed niche, creates a Telugu or English episode draft, previews the rendered video, shows continuity and draft checks, accepts revision prompts, and records approve/reject decisions. The FastAPI service exposes the same workflow and interactive API documentation at `/docs`. Streamlit remains available as an alternate local dashboard.
+
+### Run on Windows
+
+Install Python 3.11+, FFmpeg, and Node.js 22+ (Node's installer includes npm). In the repository folder:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -e ".[all]"
+Copy-Item .env.example .env
+npm install --global pnpm@11.25.0
+pnpm --dir frontend install
+pnpm --dir frontend build
+```
+
+Add the YouTube Data API and Gemini keys to `.env`; Telegram and upload OAuth are optional until those actions are needed. Local Telugu narration needs a Telugu voice installed in Windows, or the optional Azure Speech provider. Start the app with `story-video-api`, then open **http://127.0.0.1:8000** in Chrome. The API docs are at **http://127.0.0.1:8000/docs**. To develop the UI with hot reload, run `story-video-api` in one terminal and `pnpm --dir frontend dev` in another, then open **http://127.0.0.1:5173**.
+
+The API listens only on `127.0.0.1` by default. If `API_AUTH_TOKEN` is set, enter the same token in the dashboard's API connection panel. Do not expose this local development server directly to the public internet.
+
+### Run with Docker
+
+Docker builds both the React bundle and Python API. Copy `.env.example` to `.env`, add the provider keys you need, and set a long random `API_AUTH_TOKEN`. Then run:
+
+```powershell
+docker compose up --build
+```
+
+Open **http://localhost:8000** and enter the API token in the dashboard. The compose file binds to localhost, persists database/media under a Docker volume, and mounts `secrets/` for YouTube OAuth. For a public deployment, put the service behind HTTPS and an access-controlled reverse proxy; do not publish a token-bearing API directly. Telugu local speech may not be installed in a Linux image; configure Azure Speech or use a host with a Telugu voice.
+
+Folder responsibilities are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and Docker/local deployment settings are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ## Setup
 
 Requires Python 3.11 or newer. Install the base app with:

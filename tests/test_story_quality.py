@@ -54,3 +54,20 @@ def test_trend_insights_are_required_when_references_exist():
     story = valid_story(trend_insights={})
     assert evaluate_story(story)["passed"] is True
     assert evaluate_story(story, [{"title": "Village Life"}])["passed"] is False
+
+
+def test_checks_expected_scene_count_and_recurring_characters():
+    story = valid_story()
+    prior = {"series_bible": {"characters": [{"name": "Ramu"}, {"name": "Lakshmi"}]}}
+    report = evaluate_story(story, expected_scene_count=3, previous_episode=prior)
+
+    assert report["checks"]["scene_count"] is False
+    assert report["checks"]["recurring_characters_preserved"] is False
+    assert report["passed"] is False
+
+
+def test_detects_exact_telugu_title_copy():
+    title = "పాత బావి దగ్గర దీపం"
+    report = evaluate_story(valid_story(title=title), [{"title": title}])
+
+    assert report["checks"]["title_originality"] is False

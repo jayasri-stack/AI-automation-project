@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Any
 
 
 def _normalized(value: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
+    characters = (
+        char.casefold() if unicodedata.category(char)[0] in {"L", "N"} else " "
+        for char in value
+    )
+    return re.sub(r"\s+", "", "".join(characters))
 
 
 def evaluate_story(

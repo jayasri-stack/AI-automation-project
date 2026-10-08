@@ -1,0 +1,19 @@
+services:
+  story-studio:
+    build: .
+    env_file: .env
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      ENVIRONMENT: production
+      DATABASE_PATH: /data/automation.sqlite3
+      OUTPUT_DIR: /data/generated
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - story-data:/data
+      - ./secrets:/app/secrets
+    restart: unless-stopped
+
+volumes:
+  story-data:
