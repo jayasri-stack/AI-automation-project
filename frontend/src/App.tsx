@@ -95,7 +95,10 @@ export default function App() {
   const [token, setToken] = useState(savedToken);
   const [tokenDraft, setTokenDraft] = useState(savedToken);
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(() => {
+    const value = Number(new URLSearchParams(window.location.search).get("job_id"));
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  });
   const [niche, setNiche] = useState("Peaceful Telugu village stories set in the 1980s");
   const [topic, setTopic] = useState("");
   const [language, setLanguage] = useState<"te" | "en">("te");

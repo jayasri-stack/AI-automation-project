@@ -49,7 +49,7 @@ async def _send_approval(job_id: int) -> None:
         ])
     buttons.append([InlineKeyboardButton(
         "Open preview dashboard",
-        url=f"{os.getenv('DASHBOARD_URL', 'http://localhost:8501').rstrip('/')}/?job_id={job_id}",
+        url=f"{os.getenv('DASHBOARD_URL', 'http://127.0.0.1:8000').rstrip('/')}/?job_id={job_id}",
     )])
     markup = InlineKeyboardMarkup(buttons)
     audience = (
@@ -66,7 +66,7 @@ async def _send_approval(job_id: int) -> None:
                 f"Video ready for review\nJob #{job_id}: {job['title']}\n"
                 f"Upload visibility: {get_upload_privacy(job_id)}\n"
                 f"Audience: {audience}\n"
-                "Open the local Streamlit dashboard to preview it."
+                "Open the dashboard to preview it."
             ),
             reply_markup=markup,
         )
