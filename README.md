@@ -31,6 +31,18 @@ Azure. Gemini Flash and YouTube Data API use their free quotas when no paid bill
 linked. Veo and Azure are optional provider choices; check their current quotas/prices before
 enabling them. Local animation is drawn by code and is not AI-generated cinematic footage.
 
+## Story quality and continuous checks
+
+Every generated draft is checked before rendering: scene narration must match the script, required serial fields must be present, trend insights must be recorded when references are used, and a generated title cannot exactly copy a researched title. The dashboard shows trend summaries, the series bible, the next-episode hook, and the check result. These deterministic checks catch structural problems; they do not replace a human review of story quality.
+
+Install development tools and run the same checks used by GitHub Actions:
+
+```powershell
+pip install -e ".[dev]"
+ruff check src tests
+pytest -q
+```
+
 ## Project modules
 
 The package includes YouTube research, Gemini story writing, local animated village scenes, optional asynchronous Veo generation, local or optional Azure narration, FFmpeg editing, SQLite persistence, Streamlit review, Telegram approvals, and YouTube upload guarded by a persisted approval decision.

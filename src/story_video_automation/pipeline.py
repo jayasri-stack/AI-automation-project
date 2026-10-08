@@ -74,6 +74,11 @@ def start_workflow(
         save_story(
             job_id, story["synopsis"], story["script"], language, story["scenes"],
             CHANNEL_NICHE, episode_number,
+            trend_insights=story["trend_insights"],
+            series_bible=story["series_bible"],
+            continuity_bridge=story["continuity_bridge"],
+            next_episode_hook=story["next_episode_hook"],
+            quality_report=story["quality_report"],
         )
 
         video_provider = Options.from_env().video_provider
@@ -128,7 +133,6 @@ def process_pending(job_ids: set[int] | None = None) -> dict[str, int]:
             continue
         try:
             still_pending = False
-            any_failed = False
             for scene in story["scenes"]:
                 if scene["operation_state"] == "done":
                     continue
@@ -244,6 +248,11 @@ def revise_preview(job_id: int, instructions: str) -> str:
     save_story(
         job_id, revised["synopsis"], revised["script"], current["language"],
         revised["scenes"], CHANNEL_NICHE, int(current.get("episode_number", 1)),
+        trend_insights=revised["trend_insights"],
+        series_bible=revised["series_bible"],
+        continuity_bridge=revised["continuity_bridge"],
+        next_episode_hook=revised["next_episode_hook"],
+        quality_report=revised["quality_report"],
     )
     for number, scene in enumerate(rendered, 1):
         update_scene(job_id, number, operation_name="local:completed", operation_state="done",

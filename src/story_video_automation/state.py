@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import shutil
+import json
 from typing import Any
-from pathlib import Path
 
 from story_video_automation.config import get_settings
 from story_video_automation.db import connect, create_job, initialize_database
@@ -60,6 +60,11 @@ CREATE TABLE IF NOT EXISTS stories (
     language TEXT NOT NULL CHECK (language IN ('te', 'en')),
     channel_niche TEXT NOT NULL DEFAULT '',
     episode_number INTEGER NOT NULL DEFAULT 1,
+    trend_insights_json TEXT NOT NULL DEFAULT '{}',
+    series_bible_json TEXT NOT NULL DEFAULT '{}',
+    continuity_bridge TEXT NOT NULL DEFAULT '',
+    next_episode_hook TEXT NOT NULL DEFAULT '',
+    quality_report_json TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -113,6 +118,15 @@ def initialize() -> None:
             connection.execute("ALTER TABLE stories ADD COLUMN channel_niche TEXT NOT NULL DEFAULT ''")
         if "episode_number" not in story_columns:
             connection.execute("ALTER TABLE stories ADD COLUMN episode_number INTEGER NOT NULL DEFAULT 1")
+        for name, declaration in (
+            ("trend_insights_json", "TEXT NOT NULL DEFAULT '{}'"),
+            ("series_bible_json", "TEXT NOT NULL DEFAULT '{}'"),
+            ("continuity_bridge", "TEXT NOT NULL DEFAULT ''"),
+            ("next_episode_hook", "TEXT NOT NULL DEFAULT ''"),
+            ("quality_report_json", "TEXT NOT NULL DEFAULT '{}'"),
+        ):
+            if name not in story_columns:
+                connection.execute(f"ALTER TABLE stories ADD COLUMN {name} {declaration}")
         connection.execute(
             "DELETE FROM research_videos WHERE collected_at < datetime('now', '-30 days')"
         )
@@ -189,16 +203,31 @@ def save_research(job_id: int, videos: list[dict[str, Any]]) -> None:
 
 def save_story(job_id: int, synopsis: str, script: str, language: str,
                scenes: list[dict[str, str]], channel_niche: str = "",
-               episode_number: int = 1) -> None:
+               episode_number: int = 1,
+               trend_insights: dict[str, Any] | None = None,
+               series_bible: dict[str, Any] | None = None,
+               continuity_bridge: str = "",
+               next_episode_hook: str = "",
+               quality_report: dict[str, Any] | None = None) -> None:
     with connect() as connection:
         connection.execute(
-            """INSERT INTO stories(job_id, synopsis, script, language, channel_niche, episode_number)
-               VALUES (?, ?, ?, ?, ?, ?)
+            """INSERT INTO stories(job_id, synopsis, script, language, channel_niche,
+                 episode_number, trend_insights_json, series_bible_json, continuity_bridge,
+                 next_episode_hook, quality_report_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(job_id) DO UPDATE SET synopsis=excluded.synopsis,
                  script=excluded.script, language=excluded.language,
                  channel_niche=excluded.channel_niche, episode_number=excluded.episode_number,
+                 trend_insights_json=excluded.trend_insights_json,
+                 series_bible_json=excluded.series_bible_json,
+                 continuity_bridge=excluded.continuity_bridge,
+                 next_episode_hook=excluded.next_episode_hook,
+                 quality_report_json=excluded.quality_report_json,
                  created_at=CURRENT_TIMESTAMP""",
-            (job_id, synopsis, script, language, channel_niche, episode_number),
+            (job_id, synopsis, script, language, channel_niche, episode_number,
+             json.dumps(trend_insights or {}, ensure_ascii=False),
+             json.dumps(series_bible or {}, ensure_ascii=False), continuity_bridge,
+             next_episode_hook, json.dumps(quality_report or {}, ensure_ascii=False)),
         )
         connection.execute("DELETE FROM scenes WHERE job_id = ?", (job_id,))
         connection.executemany(
@@ -231,7 +260,17 @@ def get_story(job_id: int) -> dict[str, Any] | None:
         ).fetchall()
     if story is None:
         return None
-    return {**dict(story), "scenes": [dict(row) for row in scenes]}
+    result = dict(story)
+    for field, column in (
+        ("trend_insights", "trend_insights_json"),
+        ("series_bible", "series_bible_json"),
+        ("quality_report", "quality_report_json"),
+    ):
+        try:
+            result[field] = json.loads(result.get(column) or "{}")
+        except (TypeError, ValueError):
+            result[field] = {}
+    return {**result, "scenes": [dict(row) for row in scenes]}
 
 
 def list_research(job_id: int) -> list[dict[str, Any]]:

@@ -135,8 +135,6 @@ async def _on_decision(update: object, context: object) -> None:
         await query.edit_message_text(message)
     except Exception as exc:
         logger.exception("Telegram approval action failed for job %s", raw_job_id)
-        from story_video_automation.db import list_jobs
-
         job = next((item for item in list_jobs() if item["id"] == int(raw_job_id)), None)
         if job and job["status"] == "uploading":
             message = (

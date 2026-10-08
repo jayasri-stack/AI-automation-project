@@ -166,8 +166,28 @@ def main() -> None:
                 if story:
                     with st.expander("Story and script"):
                         st.markdown(f"**Synopsis:** {story['synopsis']}")
+                        st.markdown(f"**Episode {story.get('episode_number', 1)} connection:** {story.get('continuity_bridge', '—')}")
+                        st.markdown(f"**Next episode hook:** {story.get('next_episode_hook', '—')}")
                         st.text_area("Narration script", story["script"], height=160,
                                      key=f"script-{job['id']}", disabled=True)
+                        insights = story.get("trend_insights", {})
+                        if insights:
+                            st.markdown("**Trend analysis used**")
+                            st.write("Themes: " + ", ".join(map(str, insights.get("themes", []))))
+                            st.write("Audience hooks: " + ", ".join(map(str, insights.get("audience_hooks", []))))
+                        bible = story.get("series_bible", {})
+                        if bible:
+                            with st.expander("Series bible — recurring characters and open threads"):
+                                st.write(f"Setting: {bible.get('setting', '—')}")
+                                for character in bible.get("characters", []):
+                                    st.markdown(f"- **{character.get('name', 'Character')}:** {character.get('description', '')}")
+                                threads = bible.get("unresolved_threads", [])
+                                st.write("Unresolved threads: " + ("; ".join(map(str, threads)) if threads else "None"))
+                        report = story.get("quality_report", {})
+                        if report:
+                            st.markdown("**Automated draft checks:** " + ("Passed" if report.get("passed") else "Needs review"))
+                            for warning in report.get("warnings", []):
+                                st.warning(warning)
                         for scene in story["scenes"]:
                             st.caption(
                                 f"Scene {scene['scene_number']}: "
