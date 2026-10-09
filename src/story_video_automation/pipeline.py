@@ -10,7 +10,7 @@ from typing import Any
 
 from story_video_automation.azure_speech import synthesize_narration
 from story_video_automation.config import get_settings
-from story_video_automation.channel_profile import CHANNEL_NICHE, CHANNEL_SEARCH_QUERY
+from story_video_automation.channel_profile import CHANNEL_NICHE, build_search_queries
 from story_video_automation.media import render_video
 from story_video_automation.options import Options
 from story_video_automation.state import (
@@ -49,7 +49,7 @@ def start_workflow(
         raise ValueError("Enter a story topic or research query")
     sources = (
         references if references is not None
-        else search_videos(f"{CHANNEL_SEARCH_QUERY} {topic}", language)
+        else search_videos(build_search_queries(topic, language), language)
     )
     if not sources:
         raise RuntimeError("No YouTube references were selected or returned")

@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from collections.abc import Sequence
+from datetime import datetime, timezone
+import math
 from typing import Any
 
 from story_video_automation.config import get_settings
 from story_video_automation.options import Options
 
 
-def search_videos(query: str, language: str, limit: int | None = None) -> list[dict[str, Any]]:
+def search_videos(
+    query: str | Sequence[str], language: str, limit: int | None = None
+) -> list[dict[str, Any]]:
     """Search public YouTube videos, then hydrate the result IDs with current statistics.
 
     Video IDs and statistics are refreshed each search. Other API metadata is ephemeral and
@@ -19,8 +23,10 @@ def search_videos(query: str, language: str, limit: int | None = None) -> list[d
     options = Options.from_env()
     if not settings.youtube_api_key:
         raise RuntimeError("Set YOUTUBE_API_KEY to search YouTube")
-    if not query.strip():
-        raise ValueError("A non-empty YouTube research query is required")
+    queries = [query] if isinstance(query, str) else list(query)
+    queries = list(dict.fromkeys(item.strip() for item in queries if item.strip()))
+    if not queries:
+        raise ValueError("At least one non-empty YouTube research query is required")
 
     try:
         from googleapiclient.discovery import build
@@ -29,29 +35,39 @@ def search_videos(query: str, language: str, limit: int | None = None) -> list[d
 
     service = build("youtube", "v3", developerKey=settings.youtube_api_key,
                     cache_discovery=False)
-    count = limit or options.youtube_result_limit
-    search = service.search().list(
-        part="snippet",
-        q=query.strip(),
-        type="video",
-        maxResults=max(1, min(50, count)),
-        # Search API has no first-party "trending by niche" endpoint. Restrict to recent
-        # uploads and request the most-viewed candidates, then rank by estimated views/day.
-        order="viewCount",
-        publishedAfter=(datetime.now(timezone.utc) - timedelta(days=30)).isoformat(),
-        safeSearch="moderate",
-        regionCode=options.youtube_region,
-        relevanceLanguage="te" if language == "te" else "en",
-    ).execute()
-    ids = [item.get("id", {}).get("videoId") for item in search.get("items", [])]
-    ids = [video_id for video_id in ids if video_id]
+    result_limit = max(1, min(50, limit or options.youtube_result_limit * len(queries)))
+    per_query = max(1, min(50, math.ceil(result_limit / len(queries))))
+    ids: list[str] = []
+    seen_ids: set[str] = set()
+    for search_query in queries:
+        if len(ids) >= result_limit:
+            break
+        search = service.search().list(
+            part="snippet",
+            q=search_query,
+            type="video",
+            maxResults=per_query,
+            # Search broadly across upload dates so vintage and traditional references are
+            # not dropped. The merged candidates are ranked below by estimated views/day.
+            order="relevance",
+            safeSearch="moderate",
+            regionCode=options.youtube_region,
+            relevanceLanguage="te" if language == "te" else "en",
+        ).execute()
+        for item in search.get("items", []):
+            video_id = item.get("id", {}).get("videoId")
+            if video_id and video_id not in seen_ids:
+                seen_ids.add(video_id)
+                ids.append(video_id)
+                if len(ids) >= result_limit:
+                    break
     if not ids:
         return []
 
     response = service.videos().list(
         part="snippet,statistics,contentDetails",
         id=",".join(ids),
-        maxResults=len(ids),
+        maxResults=min(50, len(ids)),
     ).execute()
     videos_by_id = {item["id"]: item for item in response.get("items", [])}
     ordered: list[dict[str, Any]] = []

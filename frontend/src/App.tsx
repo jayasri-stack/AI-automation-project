@@ -169,9 +169,7 @@ export default function App() {
       });
       setResearch(results);
       if (!results.length)
-        setMessage(
-          "No recent videos were returned for this search. Try a more specific episode idea.",
-        );
+        setMessage("No matching videos were returned. Try a more specific episode idea.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "YouTube research failed.");
     } finally {
@@ -368,17 +366,22 @@ export default function App() {
               <option value="no">Not made for kids</option>
             </select>
             <button className="primary-button" type="submit" disabled={busy !== ""}>
-              {busy === "research" ? "Searching YouTube…" : "Find recent niche videos"}
+              {busy === "research" ? "Searching YouTube…" : "Search village & vintage topics"}
               <span>↗</span>
             </button>
           </form>
           {research.length > 0 && (
             <div className="research-results">
               <div className="section-title">
-                <h3>Recent research</h3>
+                <h3>Niche research ({research.length})</h3>
                 <span>Top {Math.min(3, research.length)} guide the story</span>
               </div>
-              {research.slice(0, 5).map((item) => (
+              <p className="fine-print">
+                Searches cover 1980s village life, vintage VHS stories, traditional cooking,
+                customs, and moral tales. Duplicate videos are removed; results are ranked by
+                estimated views per day.
+              </p>
+              {research.map((item) => (
                 <a
                   className="research-item"
                   href={item.url}

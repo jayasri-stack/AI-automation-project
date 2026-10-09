@@ -37,9 +37,9 @@ def test_jobs_list_and_missing_job(client: TestClient) -> None:
 
 
 def test_research_always_includes_the_fixed_niche(client: TestClient, monkeypatch) -> None:
-    observed: dict[str, str] = {}
+    observed: dict[str, object] = {}
 
-    def fake_search(query: str, language: str):
+    def fake_search(query: tuple[str, ...], language: str):
         observed.update(query=query, language=language)
         return [{"title": "Village story", "video_id": "abc"}]
 
@@ -47,9 +47,32 @@ def test_research_always_includes_the_fixed_niche(client: TestClient, monkeypatc
     response = client.post("/api/research", json={"topic": "lost calf", "language": "te"})
 
     assert response.status_code == 200
-    assert "1980s" in observed["query"]
-    assert "lost calf" in observed["query"]
+    queries = observed["query"]
+    assert isinstance(queries, tuple)
+    assert any("1980" in query for query in queries)
+    assert any("పాతకాలపు" in query for query in queries)
+    assert any("పండుగలు" in query for query in queries)
+    assert "lost calf" in queries[0]
     assert observed["language"] == "te"
+
+
+def test_research_uses_english_terms_for_english_episodes(client: TestClient, monkeypatch) -> None:
+    observed: dict[str, object] = {}
+
+    def fake_search(query: tuple[str, ...], language: str):
+        observed.update(query=query, language=language)
+        return []
+
+    monkeypatch.setattr(api, "search_videos", fake_search)
+    response = client.post("/api/research", json={"topic": "lost calf", "language": "en"})
+
+    assert response.status_code == 200
+    queries = observed["query"]
+    assert isinstance(queries, tuple)
+    assert "Telugu village story lost calf" == queries[0]
+    assert any("VHS" in query for query in queries)
+    assert any("cooking" in query for query in queries)
+    assert observed["language"] == "en"
 
 
 def test_review_route_persists_rejection_without_upload(client: TestClient) -> None:

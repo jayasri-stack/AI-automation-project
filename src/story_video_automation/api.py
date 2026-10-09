@@ -15,7 +15,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from story_video_automation.approval import decide, upload_approved_job
-from story_video_automation.channel_profile import CHANNEL_NICHE, CHANNEL_SEARCH_QUERY
+from story_video_automation.channel_profile import (
+    CHANNEL_NICHE,
+    CHANNEL_SEARCH_QUERY,
+    build_search_queries,
+)
 from story_video_automation.config import get_settings
 from story_video_automation.db import list_jobs
 from story_video_automation.options import Options
@@ -134,9 +138,9 @@ def preview(job_id: int) -> FileResponse:
 
 @router.post("/research")
 def research(request: ResearchRequest) -> list[dict[str, Any]]:
-    query = f"{CHANNEL_SEARCH_QUERY} {request.topic.strip()}".strip()
+    queries = build_search_queries(request.topic, request.language)
     try:
-        return search_videos(query, request.language)
+        return search_videos(queries, request.language)
     except Exception as exc:
         logger.exception("YouTube research failed")
         raise HTTPException(status_code=502, detail="YouTube research failed; check API configuration") from exc

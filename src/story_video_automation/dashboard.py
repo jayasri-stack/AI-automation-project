@@ -20,7 +20,7 @@ from story_video_automation.state import (
     reset_uncertain_upload,
     set_upload_settings,
 )
-from story_video_automation.channel_profile import CHANNEL_SEARCH_QUERY
+from story_video_automation.channel_profile import build_search_queries
 from story_video_automation.youtube_research import search_videos
 from story_video_automation.telegram_bot import send_approval_notification
 from story_video_automation.pipeline import revise_preview
@@ -80,8 +80,8 @@ def main() -> None:
             submitted = st.form_submit_button("Find trending niche videos")
         if submitted:
             try:
-                search_query = f"{CHANNEL_SEARCH_QUERY} {topic.strip()}".strip()
-                st.session_state["research_results"] = search_videos(search_query, language)
+                search_queries = build_search_queries(topic, language)
+                st.session_state["research_results"] = search_videos(search_queries, language)
                 st.session_state["research_topic"] = topic.strip() or "an original episode in the ongoing village story serial"
                 st.session_state["research_language"] = language
             except Exception as exc:
@@ -89,8 +89,8 @@ def main() -> None:
 
         results = st.session_state.get("research_results", [])
         if results:
-            st.markdown("#### Recent YouTube videos in this niche")
-            st.caption("Ranked by estimated views per day among videos published in the last 30 days. The top three are automatically used as trend references. This is a trend signal, not an official YouTube trending feed. Their titles, descriptions, and public stats go to Gemini to guide a new original story; source footage is never downloaded or reused.")
+            st.markdown("#### YouTube videos in this niche")
+            st.caption("Searches use Telugu phrases for Telugu episodes and English phrases for English episodes. They cover 1980s village life, vintage VHS stories, traditional cooking, customs, and moral tales. Videos from any publication date may appear; duplicates are removed and results are ranked by estimated views per day. The top three guide an original story; source footage is never downloaded or reused.")
             for rank, result in enumerate(results, 1):
                 cols = st.columns([0.6, 1, 4, 1.5])
                 with cols[0]:

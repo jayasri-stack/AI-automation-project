@@ -6,7 +6,7 @@ A local Python workflow that researches YouTube topics, creates original Telugu 
 
 ## Workflow
 
-1. Find recent high-velocity videos in a niche with YouTube Data API v3 and retain available view statistics.
+1. Search several Telugu village and vintage themes with YouTube Data API v3, then rank matching videos by estimated views per day.
 2. Generate original plots, scripts, and scene descriptions with Gemini.
 3. Render locally animated illustrated village scenes by default; optionally submit and track paid asynchronous Veo jobs.
 4. Generate narration locally by default; Azure Speech is optional.
@@ -49,7 +49,7 @@ The package includes YouTube research, Gemini story writing, local animated vill
 
 ## Browser dashboard and API
 
-The React dashboard is the main browser interface. It searches recent videos in the fixed niche, creates a Telugu or English episode draft, previews the rendered video, shows continuity and draft checks, accepts revision prompts, and records approve/reject decisions. The FastAPI service exposes the same workflow and interactive API documentation at `/docs`. Streamlit remains available as an alternate local dashboard.
+The React dashboard is the main browser interface. It searches several village and vintage themes in Telugu or English, matching the episode language, creates an episode draft, previews the rendered video, shows continuity and draft checks, accepts revision prompts, and records approve/reject decisions. The FastAPI service exposes the same workflow and interactive API documentation at `/docs`. Streamlit remains available as an alternate local dashboard.
 
 ### Run on Windows
 
@@ -118,7 +118,7 @@ Upload visibility is selected for each job in the dashboard and shown in its Tel
 
 ## Asynchronous jobs and scheduling
 
-The channel identity is fixed in code: peaceful Telugu village stories set in the 1980s, with traditional vintage life, calm narration, moral values, and recurring characters in a connected serial. The dashboard has no niche selector; it automatically searches YouTube for the fixed niche, with an optional episode idea to narrow the search. Results from the last 30 days are ranked by estimated views per day, a trend signal rather than an official YouTube trending feed. The top three results are automatically sent to Gemini as trend references to write a new original story; source footage is not downloaded or reused. Each new episode continues the latest approved story and ends with a hook. A pending episode must be approved or rejected before the next episode can be created. You can revise an awaiting-approval draft with a prompt and review the preview. Prompt revisions regenerate the free local 2D animated village scenes. This is procedural illustration, not AI-generated cinematic footage. Veo jobs are asynchronous; run `story-video process-pending` to poll them. Install current-user Windows Task Scheduler tasks with:
+The channel identity is fixed in code: peaceful Telugu village stories set in the 1980s, with traditional vintage life, calm narration, moral values, and recurring characters in a connected serial. The dashboard has no niche selector; it searches several village life, VHS, cooking, customs, and moral-story themes using Telugu or English queries to match the episode language, with an optional episode idea added as another search. Each theme search consumes YouTube API quota. Videos from any publication date may appear and are ranked by estimated views per day; this is a research signal, not an official YouTube trending feed. The top three results guide an original story; source footage is not downloaded or reused. Each new episode continues the latest approved story and ends with a hook. A pending episode must be approved or rejected before the next episode can be created. You can revise an awaiting-approval draft with a prompt and review the preview. Prompt revisions regenerate the free local 2D animated village scenes. This is procedural illustration, not AI-generated cinematic footage. Veo jobs are asynchronous; run `story-video process-pending` to poll them. Install current-user Windows Task Scheduler tasks with:
 
 ```powershell
 .\scripts\install-scheduled-tasks.ps1
