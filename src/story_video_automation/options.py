@@ -16,7 +16,10 @@ def _int(name: str, default: int, minimum: int, maximum: int) -> int:
 class Options:
     youtube_region: str = "IN"
     youtube_result_limit: int = 8
+    text_provider: str = "ollama"
     text_model: str = "gemini-2.5-flash"
+    ollama_model: str = "qwen3:4b"
+    ollama_base_url: str = "http://localhost:11434"
     video_model: str = "veo-3.1-generate-preview"
     video_provider: str = "local"
     speech_provider: str = "local"
@@ -56,10 +59,16 @@ class Options:
         speech_provider = os.getenv("SPEECH_PROVIDER", "local").lower()
         if speech_provider not in {"local", "azure"}:
             raise ValueError("SPEECH_PROVIDER must be local or azure")
+        text_provider = os.getenv("TEXT_PROVIDER", "ollama").lower()
+        if text_provider not in {"ollama", "gemini"}:
+            raise ValueError("TEXT_PROVIDER must be ollama or gemini")
         return cls(
             youtube_region=os.getenv("YOUTUBE_REGION", "IN").upper(),
             youtube_result_limit=_int("YOUTUBE_RESULT_LIMIT", 8, 1, 50),
+            text_provider=text_provider,
             text_model=os.getenv("GEMINI_TEXT_MODEL", "gemini-2.5-flash"),
+            ollama_model=os.getenv("OLLAMA_MODEL", "qwen3:4b"),
+            ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/"),
             video_model=os.getenv("GEMINI_VIDEO_MODEL", "veo-3.1-generate-preview"),
             video_provider=video_provider,
             speech_provider=speech_provider,

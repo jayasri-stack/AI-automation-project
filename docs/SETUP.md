@@ -2,11 +2,11 @@
 
 ## Provider credentials
 
-Copy `.env.example` to `.env`. The defaults use local 2D village animation and local speech; no Veo or
-Azure request is made unless you explicitly change the provider settings.
+Copy `.env.example` to `.env`. The defaults use local Ollama for story writing, local 2D village animation, and local speech; no Gemini, Veo, or Azure request is made unless you explicitly select those providers.
 
 - **YouTube research:** Create a Google Cloud project, enable YouTube Data API v3, and set its API key as `YOUTUBE_API_KEY`.
-- **Gemini stories:** Create a Gemini API key and leave the project on a free-tier model/project; do not link billing if you need to avoid charges. Free-tier limits apply and can change. Gemini free-tier requests may be used to improve Google's products.
+- **Local stories:** Install [Ollama for Windows](https://ollama.com/download/windows), then run `ollama pull qwen3:4b`. Set `TEXT_PROVIDER=ollama` (the default) and `OLLAMA_MODEL=qwen3:4b`. This downloads about 2.5 GB and uses your computer's memory; no model API key is needed.
+- **Gemini stories (optional):** To use Gemini instead, set `TEXT_PROVIDER=gemini` and `GEMINI_API_KEY`. Free-tier limits can change, and requests may be used to improve Google's products.
 - **Veo clips (optional, paid):** Only set `VIDEO_PROVIDER=veo` if you decide to use paid Veo. Its API has no free tier; review pricing before enabling it.
 - **Narration:** The default local speech mode uses a voice installed in Windows. If no Telugu voice is installed, add a Telugu voice through Windows language/speech settings before processing Telugu jobs. Optional Azure Speech mode uses `SPEECH_PROVIDER=azure` and requires a Speech key and region; only use it after confirming the resource is on the F0 free tier.
 - **Telegram approvals:** Create a bot with BotFather. Set `TELEGRAM_BOT_TOKEN`, send `/start` to the bot, and run `story-video telegram-chat-id`. Copy the printed numeric ID to `TELEGRAM_CHAT_ID`. The bot ignores approval actions from every other chat.
@@ -16,7 +16,7 @@ FFmpeg and FFprobe must be installed separately. The FFmpeg build needs H.264 (`
 
 ## Workflow and approvals
 
-The channel niche is fixed in code; there is no dashboard niche selector. It is peaceful Telugu village stories set in the 1980s, with traditional vintage life, calm narration, moral values, and recurring characters in a connected serial. The dashboard searches several village life, VHS, cooking, customs, and moral-story themes in Telugu for Telugu episodes and English for English episodes; optionally enter an episode idea to add a focused search. Each theme search consumes YouTube API quota. Videos from any publication date may appear and are ranked by estimated views per day; this is a niche research signal, not an official YouTube trending feed. The top three are used as trend references. Their titles, descriptions, and public statistics are sent to Gemini to identify broad audience interests and write a new original story. Source videos are not downloaded or reused. Each episode continues the most recently approved installment and ends with a hook; approve or reject a pending episode before creating the next one.
+The channel niche is fixed in code; there is no dashboard niche selector. It is peaceful Telugu village stories set in the 1980s, with traditional vintage life, calm narration, moral values, and recurring characters in a connected serial. The dashboard searches several village life, VHS, cooking, customs, and moral-story themes in Telugu for Telugu episodes and English for English episodes; optionally enter an episode idea to add a focused search. Each theme search consumes YouTube API quota. Videos from any publication date may appear and are ranked by estimated views per day; this is a niche research signal, not an official YouTube trending feed. The top three guide the story. Research and continuity context go to the configured story provider: local Ollama by default, or Gemini if selected. Source footage is never downloaded or reused. Each episode continues the most recently approved installment and ends with a hook; approve or reject a pending episode before creating the next one.
 
 In free-first local mode, Python draws simple vintage village scenes with moving villagers, clouds, birds, and other details; FFmpeg turns these frames into clips. This procedural 2D animation does not use a video-generation API, but it is not AI-generated cinematic footage. You can request prompt-based script and scene revisions while the draft awaits approval; each revision creates a new preview, sends a fresh Telegram notification, and invalidates old Telegram buttons. If you opt into Veo, its long-running operation names are stored in SQLite so `story-video process-pending` can poll after a restart. Once scenes are ready, the worker creates per-scene narration, mixes scene audio with narration, adds optional background music, burns subtitles into the preview, then sends approval buttons.
 
@@ -31,7 +31,7 @@ For daily automatic job creation, set `SCHEDULED_TOPIC` and `SCHEDULED_LANGUAGE`
 - A Telegram bot process at user sign-in.
 
 Every scheduled job still waits for approval. The desktop session must be running for the Telegram bot and local OAuth consent flow.
-Each scheduled generation uses YouTube and Gemini API quota. Local animation incurs no video-provider charge. Veo or Azure may incur charges if explicitly enabled. Leave `SCHEDULED_TOPIC` empty and do not install the scheduled creator if you only want jobs started manually in Streamlit.
+Each scheduled generation uses YouTube API quota. Local Ollama, animation, and speech incur no provider API charge. Gemini, Veo, or Azure may incur charges if explicitly enabled. Leave `SCHEDULED_TOPIC` empty and do not install the scheduled creator if you only want jobs started manually in Streamlit.
 
 ## Local data and security
 

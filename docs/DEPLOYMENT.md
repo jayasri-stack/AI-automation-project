@@ -4,7 +4,7 @@
 
 Follow the README setup steps, then start `story-video-api`. The production React files are served from the same FastAPI origin at `http://127.0.0.1:8000`; `/docs` exposes the OpenAPI page. For frontend hot reload, run Vite separately at `http://127.0.0.1:5173`.
 
-The app needs YouTube Data API and Gemini credentials to research and write episodes. Telegram, Azure Speech, and YouTube OAuth are optional integrations. Never commit `.env`, OAuth files, generated media, SQLite databases, or logs.
+The app uses YouTube Data API credentials for research and local Ollama for story writing by default. Install Ollama and pull the configured model before creating stories. Gemini is optional. For Docker, run Ollama on the host and set `OLLAMA_BASE_URL=http://host.docker.internal:11434` in `.env`. Telegram, Azure Speech, and YouTube OAuth are optional integrations. Never commit `.env`, OAuth files, generated media, SQLite databases, or logs.
 
 ## Docker Compose
 
@@ -21,4 +21,4 @@ Compose stores SQLite and generated files in the named `story-data` volume and m
 - Local scene rendering and the current API's generation request are synchronous and can take time. For a multi-user production service, move generation into a durable queue/worker before scaling out.
 - Upload decisions are recorded before upload. If the job is left in `uploading`, check YouTube Studio before retrying because the remote result may be uncertain.
 - A container does not include a Telugu system voice by default. Use Azure Speech with its configured region/key or run on a host with an installed Telugu voice.
-- YouTube and Gemini free quotas can change and are controlled by their providers. Veo, Azure, hosting, and bandwidth may incur charges.
+- YouTube API quota is controlled by Google. Local Ollama and local rendering need computer resources; Gemini, Veo, Azure, hosting, and bandwidth may incur charges if enabled.

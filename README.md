@@ -7,7 +7,7 @@ A local Python workflow that researches YouTube topics, creates original Telugu 
 ## Workflow
 
 1. Search several Telugu village and vintage themes with YouTube Data API v3, then rank matching videos by estimated views per day.
-2. Generate original plots, scripts, and scene descriptions with Gemini.
+2. Generate original plots, scripts, and scene descriptions locally with Ollama by default; Gemini is optional.
 3. Render locally animated illustrated village scenes by default; optionally submit and track paid asynchronous Veo jobs.
 4. Generate narration locally by default; Azure Speech is optional.
 5. Join clips, mix narration, and add subtitles with FFmpeg.
@@ -25,11 +25,11 @@ A local Python workflow that researches YouTube topics, creates original Telugu 
 
 ## Free-first defaults
 
-The default `VIDEO_PROVIDER=local` renders simple 2D animated village illustrations with FFmpeg instead of calling the
-paid Veo API. `SPEECH_PROVIDER=local` uses an installed Windows speech voice and does not call
-Azure. Gemini Flash and YouTube Data API use their free quotas when no paid billing project is
-linked. Veo and Azure are optional provider choices; check their current quotas/prices before
-enabling them. Local animation is drawn by code and is not AI-generated cinematic footage.
+The default `TEXT_PROVIDER=ollama` runs the Qwen3 story model on your PC without a story API key.
+`VIDEO_PROVIDER=local` renders simple 2D animated village illustrations with FFmpeg, and
+`SPEECH_PROVIDER=local` uses an installed Windows speech voice. YouTube research still uses its
+API quota. Gemini is optional; Veo and Azure may incur charges if enabled. Local animation is
+drawn by code and is not AI-generated cinematic footage.
 
 ## Story quality and continuous checks
 
@@ -45,7 +45,7 @@ pytest -q
 
 ## Project modules
 
-The package includes YouTube research, Gemini story writing, local animated village scenes, optional asynchronous Veo generation, local or optional Azure narration, FFmpeg editing, SQLite persistence, Streamlit review, Telegram approvals, and YouTube upload guarded by a persisted approval decision.
+The package includes YouTube research, local Ollama story writing (with optional Gemini), local animated village scenes, optional asynchronous Veo generation, local or optional Azure narration, FFmpeg editing, SQLite persistence, Streamlit review, Telegram approvals, and YouTube upload guarded by a persisted approval decision.
 
 ## Browser dashboard and API
 
@@ -66,7 +66,7 @@ pnpm --dir frontend install
 pnpm --dir frontend build
 ```
 
-Add the YouTube Data API and Gemini keys to `.env`; Telegram and upload OAuth are optional until those actions are needed. Local Telugu narration needs a Telugu voice installed in Windows, or the optional Azure Speech provider. Start the app with `story-video-api`, then open **http://127.0.0.1:8000** in Chrome. The API docs are at **http://127.0.0.1:8000/docs**. To develop the UI with hot reload, run `story-video-api` in one terminal and `pnpm --dir frontend dev` in another, then open **http://127.0.0.1:5173**.
+Add a YouTube Data API key to `.env` for research. Story writing uses local Ollama by default; install Ollama and pull the configured model before creating a story. Gemini, Telegram, and upload OAuth are optional. Local Telugu narration needs a Telugu voice installed in Windows, or the optional Azure Speech provider. Start the app with `story-video-api`, then open **http://127.0.0.1:8000** in Chrome. The API docs are at **http://127.0.0.1:8000/docs**. To develop the UI with hot reload, run `story-video-api` in one terminal and `pnpm --dir frontend dev` in another, then open **http://127.0.0.1:5173**.
 
 The API listens only on `127.0.0.1` by default. If `API_AUTH_TOKEN` is set, enter the same token in the dashboard's API connection panel. Do not expose this local development server directly to the public internet.
 
@@ -112,7 +112,7 @@ The dashboard starts empty until you search and create a job. Configure only the
 
 ## Provider setup
 
-Add a YouTube Data API key, Gemini API key, Azure Speech resource key and region, and Telegram bot token/chat ID to `.env`. For uploads, download an OAuth **Desktop app** client JSON and put it at `YOUTUBE_OAUTH_CLIENT_SECRETS` (default `secrets/youtube-client-secret.json`). The first approved upload opens Google's local OAuth consent flow; its token is stored under the Git-ignored `secrets/` directory. Start a chat with your Telegram bot before configuring the numeric `TELEGRAM_CHAT_ID`.
+Add a YouTube Data API key to `.env`. Gemini, Azure Speech, and Telegram credentials are optional. For uploads, download an OAuth **Desktop app** client JSON and put it at `YOUTUBE_OAUTH_CLIENT_SECRETS` (default `secrets/youtube-client-secret.json`). The first approved upload opens Google's local OAuth consent flow; its token is stored under the Git-ignored `secrets/` directory. Start a chat with your Telegram bot before configuring the numeric `TELEGRAM_CHAT_ID`.
 
 Upload visibility is selected for each job in the dashboard and shown in its Telegram message; it defaults to `private` and can be changed with `YOUTUBE_UPLOAD_PRIVACY`. An approved item triggers upload. If OAuth is not ready, approval stays saved and you can retry from the dashboard or with `story-video upload-approved JOB_ID`. A job left in `uploading` has an uncertain remote outcome; check YouTube Studio before retrying to avoid duplicates.
 

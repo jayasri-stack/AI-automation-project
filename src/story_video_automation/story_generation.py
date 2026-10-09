@@ -1,8 +1,10 @@
-"""Original story, narration, and visual scene generation with Gemini."""
+"""Original story, narration, and visual scene generation with local Ollama or Gemini."""
 
 from __future__ import annotations
 
 import json
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 from typing import Any
 
 from story_video_automation.config import get_settings
@@ -22,18 +24,10 @@ def generate_story(
     previous_episode: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Generate a structured, original script based on topic-level research signals."""
-    settings = get_settings()
+    settings = get_settings()  # Also loads the local .env before reading Options.
     options = Options.from_env()
-    if not settings.gemini_api_key:
-        raise RuntimeError("Set GEMINI_API_KEY to generate a story")
     if language not in {"te", "en"}:
         raise ValueError("language must be 'te' (Telugu) or 'en' (English)")
-
-    try:
-        from google import genai
-        from google.genai import types
-    except ImportError as exc:
-        raise RuntimeError('Install the "gemini" extra to use Gemini') from exc
 
     lang = "Telugu" if language == "te" else "English"
     count = scene_count or options.scene_count
@@ -99,22 +93,35 @@ Include 2-4 concise trend themes and audience hooks based only on the reference 
 Trend insights are research notes; do not copy or mention source titles. Avoid references to
 real people or copyrighted characters.
 """
-    client = genai.Client(api_key=settings.gemini_api_key)
-    response = client.models.generate_content(
-        model=options.text_model,
-        contents=prompt,
-        config=types.GenerateContentConfig(response_mime_type="application/json"),
-    )
+    if options.text_provider == "ollama":
+        response_text = _generate_with_ollama(prompt, options.ollama_model, options.ollama_base_url)
+        provider_name = "Ollama"
+    else:
+        if not settings.gemini_api_key:
+            raise RuntimeError("Set GEMINI_API_KEY or switch TEXT_PROVIDER to ollama")
+        try:
+            from google import genai
+            from google.genai import types
+        except ImportError as exc:
+            raise RuntimeError('Install the "gemini" extra to use Gemini') from exc
+        client = genai.Client(api_key=settings.gemini_api_key)
+        response = client.models.generate_content(
+            model=options.text_model,
+            contents=prompt,
+            config=types.GenerateContentConfig(response_mime_type="application/json"),
+        )
+        response_text = response.text or ""
+        provider_name = "Gemini"
     try:
-        data = json.loads(response.text or "")
+        data = json.loads(response_text)
     except (ValueError, TypeError) as exc:
-        raise RuntimeError("Gemini returned invalid story JSON") from exc
+        raise RuntimeError(f"{provider_name} returned invalid story JSON") from exc
     if not isinstance(data, dict):
-        raise RuntimeError("Gemini story JSON must be an object")
+        raise RuntimeError(f"{provider_name} story JSON must be an object")
 
     scenes = data.get("scenes")
     if not isinstance(scenes, list) or len(scenes) != count:
-        raise RuntimeError(f"Gemini story must contain exactly {count} scenes")
+        raise RuntimeError(f"{provider_name} story must contain exactly {count} scenes")
     clean_scenes = []
     for scene in scenes:
         if not isinstance(scene, dict):
@@ -128,7 +135,7 @@ real people or copyrighted characters.
     synopsis = str(data.get("synopsis", "")).strip()
     script = str(data.get("script", "")).strip()
     if not title or not synopsis:
-        raise RuntimeError("Gemini story is missing a title or synopsis")
+        raise RuntimeError(f"{provider_name} story is missing a title or synopsis")
     story = {
         "title": title,
         "synopsis": synopsis,
@@ -154,3 +161,40 @@ real people or copyrighted characters.
         )
     story["quality_report"] = quality_report
     return story
+
+
+def _generate_with_ollama(prompt: str, model: str, base_url: str) -> str:
+    """Call the local Ollama JSON generation endpoint without an extra SDK dependency."""
+    body = json.dumps({
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "format": "json",
+        "think": False,
+        "options": {"num_ctx": 16384},
+    }).encode("utf-8")
+    request = Request(
+        f"{base_url}/api/generate",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=300) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        raise RuntimeError(
+            f"Ollama returned HTTP {exc.code}. Check that the model '{model}' is installed. {detail}"
+        ) from exc
+    except (URLError, TimeoutError) as exc:
+        raise RuntimeError(
+            "Could not reach Ollama at " + base_url
+            + ". Install and start Ollama, then run `ollama pull " + model + "`."
+        ) from exc
+    except (ValueError, KeyError) as exc:
+        raise RuntimeError("Ollama returned an invalid response") from exc
+    text = result.get("response")
+    if not isinstance(text, str) or not text.strip():
+        raise RuntimeError("Ollama returned an empty story response")
+    return text

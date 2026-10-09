@@ -5,7 +5,7 @@ This project runs on the computer where you start Streamlit, the Telegram bot, a
 ## Data sent to providers
 
 - YouTube Data API receives the search query and returns video IDs, titles, channel names, descriptions, publication times, and current public statistics.
-- Gemini receives the fixed channel identity from the source code, the optional episode idea you enter, continuity details from the previous approved episode, and metadata for the top three recent YouTube search results (titles, channel names, descriptions, publication dates, and public statistics). It uses this metadata to infer broad audience interests and create an original script and scene prompts; the project does not download or reuse source footage. YouTube descriptions are external content and are treated only as research text.
+- By default, Ollama runs the story model locally. Your episode idea, continuity details, and selected YouTube metadata stay on your computer for story generation. If you set `TEXT_PROVIDER=gemini`, that context is sent to Google's Gemini API; the project does not download or reuse source footage. YouTube descriptions are external content and are treated only as research text.
 - Azure Speech receives each scene's narration text to create audio.
 - Telegram receives the job title, job number, selected upload visibility, and inline approve/reject buttons.
 - YouTube receives the final MP4 and upload metadata only after you approve the job in the dashboard or the configured Telegram chat.

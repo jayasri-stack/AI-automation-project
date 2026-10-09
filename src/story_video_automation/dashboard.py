@@ -31,13 +31,15 @@ def main() -> None:
     st.title("AI Story Video Studio")
     st.caption("Find recent high-velocity videos in your niche, select references, generate a draft, revise it by prompt, then approve before upload.")
     options = Options.from_env()
-    if options.video_provider == "local" and options.speech_provider == "local":
+    if options.video_provider == "local" and options.speech_provider == "local" and options.text_provider == "ollama":
         st.info(
-            "No-cost mode is active: illustrated village scenes animate on your PC and narration uses an installed "
-            "Windows voice. Gemini Flash stays on its free tier unless you link billing."
+            "Free local mode is active: Ollama writes stories on your PC, illustrated village scenes are rendered locally, "
+            "and narration uses an installed Windows voice. YouTube research still uses API quota."
         )
     elif options.video_provider == "veo":
         st.warning("Veo video generation is a paid service. Each generated second may incur a charge.")
+    elif options.text_provider == "gemini":
+        st.warning("Story writing uses Gemini API and can hit free-tier limits or temporary outages.")
     st.markdown(
         "Uses the YouTube Data API. [Google Privacy Policy](https://policies.google.com/privacy) · "
         "[Local data and privacy notice](https://github.com/jayasri-stack/AI-automation-project/blob/main/docs/PRIVACY.md)"
